@@ -7,7 +7,7 @@ $xlfFiles = @()
 
 $allXlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.xlf"
 $langXlfFiles = @()
-if ($allXlfFiles.Length > 0) {
+if ($allXlfFiles.Length -gt 0) {
     $allXlfFiles[0].FullName -Match "\.([\w-]+)\.xlf"
     $firstLangCode = $Matches.1
     $langXlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.$firstLangCode.xlf"
