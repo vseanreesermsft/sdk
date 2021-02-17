@@ -7,7 +7,7 @@ $xlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.xlf"
 $locFiles = @($resxFiles) + $xlfFiles
 
 $exclusionsFilePath = "$env:BUILD_SOURCESDIRECTORY\Localize\LocExclusions.json"
-$exclusions = @()
+$exclusions = @{ Exclusions = @() }
 if (Test-Path -Path $exclusionsFilePath)
 {
     $exclusions = Get-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocExclusions.json" | ConvertFrom-Json
