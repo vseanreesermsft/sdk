@@ -3,7 +3,20 @@ $ErrorActionPreference = "Stop"
 
 Push-Location "$env:BUILD_SOURCESDIRECTORY" # push location for Resolve-Path -Relative to work
 $resxFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.resx"
-$xlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.xlf"
+$xlfFiles = @()
+
+$allXlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.xlf"
+$langXlfFiles = @()
+if ($allXlfFiles.Length > 0) {
+    $allXlfFiles[0].FullName -Match "\.([\w-]+)\.xlf"
+    $firstLangCode = $Matches.1
+    $langXlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.$firstLangCode.xlf"
+}
+$langXlfFiles | ForEach-Object {
+    $_.Name -Match "([^.]+)\.[\w-]+\.xlf"
+    $xlfFiles += Copy-Item "$($_.FullName)" -Destination "$($_.Directory.FullName)\$($Matches.1).xlf" -PassThru
+}
+
 $locFiles = @($resxFiles) + $xlfFiles
 
 $exclusionsFilePath = "$env:BUILD_SOURCESDIRECTORY\Localize\LocExclusions.json"
