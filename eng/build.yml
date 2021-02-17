@@ -15,6 +15,7 @@ parameters:
   timeoutInMinutes: 180
 
 jobs:
+- template: /eng/common/templates/job/onelocbuild.yml
 - template: /eng/common/templates/job/job.yml
   parameters:
     name: ${{ parameters.agentOs }}

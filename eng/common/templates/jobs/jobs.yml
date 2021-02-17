@@ -31,6 +31,8 @@ parameters:
   #           if 'true', the build won't run any of the internal only steps, even if it is running in non-public projects.
   runAsPublic: false
 
+  enableOneLocBuild: false
+
   enableSourceIndex: false
   sourceIndexParams: {}
 
@@ -52,6 +54,9 @@ jobs:
           ${{ property.key }}: ${{ property.value }}
 
       name: ${{ job.job }}
+
+- ${{ if eq(parameters.enableOneLocBuild, true) }}:
+  - template: ../job/onelocbuild.yml
 
 - ${{ if eq(parameters.enableSourceBuild, true) }}:
   - template: /eng/common/templates/jobs/source-build.yml
