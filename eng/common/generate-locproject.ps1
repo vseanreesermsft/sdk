@@ -17,7 +17,7 @@ $langXlfFiles | ForEach-Object {
     $xlfFiles += Copy-Item "$($_.FullName)" -Destination "$($_.Directory.FullName)\$($Matches.1).xlf" -PassThru
 }
 
-$locFiles = @($resxFiles) + $xlfFiles
+$locFiles = $resxFiles + $xlfFiles
 
 $exclusionsFilePath = "$env:BUILD_SOURCESDIRECTORY\Localize\LocExclusions.json"
 $exclusions = @{ Exclusions = @() }
