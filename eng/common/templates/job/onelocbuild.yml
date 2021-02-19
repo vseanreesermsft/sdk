@@ -9,6 +9,9 @@ parameters:
   CeapexPat: $(dn-bot-ceapex-package-r)
   GithubPat: $(BotAccount-dotnet-bot-repo-PAT)
 
+  LclSource: ''
+  LclPackageId: ''
+
 jobs:
 - job: OneLocBuild
   
@@ -32,6 +35,8 @@ jobs:
       inputs:
         locProj: Localize/LocProject.json
         outDir: $(Build.ArtifactStagingDirectory)
+        lclSource: ${{ parameters.LclSource }}
+        lclPackageId: ${{ parameters.LclPackageId }}
         isCreatePrSelected: true
         repoType: gitHub
         gitHubPatVariable: "${{ parameters.GithubPat }}"

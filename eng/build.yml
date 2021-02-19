@@ -16,6 +16,9 @@ parameters:
 
 jobs:
 - template: /eng/common/templates/job/onelocbuild.yml
+  parameters:
+    LclSource: lclFilesfromPackage
+    LclPackageId: 'LCL-LEGO-INT-DOTNETSDK'
 - template: /eng/common/templates/job/job.yml
   parameters:
     name: ${{ parameters.agentOs }}
