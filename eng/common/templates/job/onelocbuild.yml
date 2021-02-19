@@ -9,7 +9,9 @@ parameters:
   CeapexPat: $(dn-bot-ceapex-package-r)
   GithubPat: $(BotAccount-dotnet-bot-repo-PAT)
 
-  LclSource: ''
+  CreatePr: true
+  
+  LclSource: lclFilesInRepo
   LclPackageId: ''
 
 jobs:
@@ -37,7 +39,7 @@ jobs:
         outDir: $(Build.ArtifactStagingDirectory)
         lclSource: ${{ parameters.LclSource }}
         lclPackageId: ${{ parameters.LclPackageId }}
-        isCreatePrSelected: true
+        isCreatePrSelected: ${{ parameters.CreatePr }}
         repoType: gitHub
         gitHubPatVariable: "${{ parameters.GithubPat }}"
         packageSourceAuth: patAuth
