@@ -30,7 +30,7 @@ if (Test-Path -Path $exclusionsFilePath)
 $locJson = @{
     Projects = @(
         @{
-            LanguageSet = "Azure_Languages"
+            LanguageSet = "cs;de;es;fr;it;ja;ko;pl;pt-BR;ru;tr;zh-Hans;zh-Hant"
             LocItems = @(
                 $locFiles | ForEach-Object {
                     $outputPath = "Localize\$(($_.DirectoryName | Resolve-Path -Relative).Substring(2) + "\" + $_.Name)" 
