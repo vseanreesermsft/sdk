@@ -1,6 +1,13 @@
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
 
+$exclusionsFilePath = "$env:BUILD_SOURCESDIRECTORY\Localize\LocExclusions.json"
+$exclusions = @{ Exclusions = @() }
+if (Test-Path -Path $exclusionsFilePath)
+{
+    $exclusions = Get-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocExclusions.json" | ConvertFrom-Json
+}
+
 Push-Location "$env:BUILD_SOURCESDIRECTORY" # push location for Resolve-Path -Relative to work
 $resxFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.resx"
 $xlfFiles = @()
@@ -18,14 +25,6 @@ $xlfFiles = @()
 # }
 
 $locFiles = $resxFiles + $xlfFiles
-
-$exclusionsFilePath = "$env:BUILD_SOURCESDIRECTORY\Localize\LocExclusions.json"
-$exclusions = @{ Exclusions = @() }
-if (Test-Path -Path $exclusionsFilePath)
-{
-    $exclusions = Get-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocExclusions.json" | ConvertFrom-Json
-}
-
 
 $locJson = @{
     Projects = @(

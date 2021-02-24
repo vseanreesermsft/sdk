@@ -1,5 +1,6 @@
 {
     "Exclusions": [
-        "TestProjects"
+        "TestProjects",
+        "tests"
     ]
 }
