@@ -1,6 +1,7 @@
 {
     "Exclusions": [
         "TestProjects",
-        "tests"
+        "tests",
+        "ProgressDialog.resx"
     ]
 }

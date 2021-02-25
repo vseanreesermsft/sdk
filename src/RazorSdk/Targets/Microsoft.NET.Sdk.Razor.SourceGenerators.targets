@@ -16,12 +16,10 @@ Copyright (c) .NET Foundation. All rights reserved.
 
     <PropertyGroup>
       <_RazorSdkSourceGeneratorDirectoryRoot>$(RazorSdkDirectoryRoot)\source-generators\</_RazorSdkSourceGeneratorDirectoryRoot>
-      <_RazorReferenceAssemblyTagHelpersOutputPath>$([System.IO.Path]::GetFullPath($(IntermediateOutputPath)))RazorTagHelper.refs.out.cache</_RazorReferenceAssemblyTagHelpersOutputPath>
     </PropertyGroup>
 
     <!-- Configure analyzers -->
     <ItemGroup>
-      <_RazorAnalyzer Include="$(_RazorSdkSourceGeneratorDirectoryRoot)Newtonsoft.Json.dll" />
       <_RazorAnalyzer Include="$(_RazorSdkSourceGeneratorDirectoryRoot)Microsoft.AspNetCore.Mvc.Razor.Extensions.dll" />
       <_RazorAnalyzer Include="$(_RazorSdkSourceGeneratorDirectoryRoot)Microsoft.AspNetCore.Razor.Language.dll" />
       <_RazorAnalyzer Include="$(_RazorSdkSourceGeneratorDirectoryRoot)Microsoft.CodeAnalysis.Razor.dll" />
@@ -45,9 +43,7 @@ Copyright (c) .NET Foundation. All rights reserved.
       <CompilerVisibleProperty Include="RootNamespace" />
       <CompilerVisibleProperty Include="MSBuildProjectDirectory" />
       <CompilerVisibleProperty Include="DesignTimeBuild" />
-      <CompilerVisibleProperty Include="_RazorReferenceAssemblyTagHelpersOutputPath" />
       <CompilerVisibleProperty Include="_RazorSourceGeneratorDebug" />
-      <CompilerVisibleProperty Include="_RazorSourceGeneratorWriteGeneratedOutput" />
       <CompilerVisibleProperty Include="_RazorSourceGeneratorLog" />
     </ItemGroup>
 
@@ -62,7 +58,6 @@ Copyright (c) .NET Foundation. All rights reserved.
       <FileWrite Include="%(RazorGenerateWithTargetPath.GeneratedOutput)" Condition="'$(RazorCompileOnBuild)' != 'false'" />
       <FileWrite Include="%(RazorComponentWithTargetPath.GeneratedDeclaration)" />
       <FileWrite Include="$(_RazorCurrentAssemblyTagHelperOutputCachePath)" />
-      <FileWrite Include="$(_RazorReferenceAssemblyTagHelpersOutputPath)" />
     </ItemGroup>
  </Target>
 
