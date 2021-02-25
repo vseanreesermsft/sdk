@@ -32,7 +32,7 @@ $locJson = @{
             LanguageSet = "VS_Main_Languages"
             LocItems = @(
                 $locFiles | ForEach-Object {
-                    $outputPath = "Localize\$(($_.DirectoryName | Resolve-Path -Relative).Substring(2) + "\" + $_.Name)" 
+                    $outputPath = "Localize\$(($_.DirectoryName | Resolve-Path -Relative).Substring(2) + "\")" 
                     $continue = $true
                     $exclusions.Exclusions | ForEach-Object {
                         if ($outputPath.Contains($_))
