@@ -9,21 +9,22 @@ if (Test-Path -Path $exclusionsFilePath)
 }
 
 Push-Location "$env:BUILD_SOURCESDIRECTORY" # push location for Resolve-Path -Relative to work
+$jsonFiles = Get-ChildItem -Recurse - Path "$env:BUILD_SOURCESDIRECTORY\*\en\strings.json"
 $xlfFiles = @()
 
 $allXlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.xlf"
 $langXlfFiles = @()
 if ($allXlfFiles.Length -gt 0) {
-    $allXlfFiles[0].FullName -Match "\.([\w-]+)\.xlf"
+    $isMatch = $allXlfFiles[0].FullName -Match "\.([\w-]+)\.xlf"
     $firstLangCode = $Matches.1
     $langXlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.$firstLangCode.xlf"
 }
 $langXlfFiles | ForEach-Object {
-    $_.Name -Match "([^.]+)\.[\w-]+\.xlf"
+    $isMatch = $_.Name -Match "([^.]+)\.[\w-]+\.xlf"
     $xlfFiles += Copy-Item "$($_.FullName)" -Destination "$($_.Directory.FullName)\$($Matches.1).xlf" -PassThru
 }
 
-$locFiles = $xlfFiles
+$locFiles = $jsonFiles + $xlfFiles
 
 $locJson = @{
     Projects = @(
@@ -59,3 +60,4 @@ Pop-Location
 
 New-Item "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" -Force
 Set-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" $json
+Copy-Item "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" "$env:BUILD_ARTIFACTSTAGINGDIRECTORY\loc"
