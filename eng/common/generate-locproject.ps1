@@ -1,3 +1,8 @@
+Param(
+    [string] $LanguageSet = 'VS_Main_Languages',
+    [string] $CreateFile = "true"
+)
+
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
 
@@ -9,7 +14,7 @@ if (Test-Path -Path $exclusionsFilePath)
 }
 
 Push-Location "$env:BUILD_SOURCESDIRECTORY" # push location for Resolve-Path -Relative to work
-$jsonFiles = Get-ChildItem -Recurse - Path "$env:BUILD_SOURCESDIRECTORY\*\en\strings.json"
+$jsonFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY" | where { $_.FullName -Match "en\\strings.json" }
 $xlfFiles = @()
 
 $allXlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.xlf"
@@ -29,7 +34,7 @@ $locFiles = $jsonFiles + $xlfFiles
 $locJson = @{
     Projects = @(
         @{
-            LanguageSet = "VS_Main_Languages"
+            LanguageSet = $LanguageSet
             LocItems = @(
                 $locFiles | ForEach-Object {
                     $outputPath = "Localize\$(($_.DirectoryName | Resolve-Path -Relative).Substring(2) + "\")" 
@@ -58,6 +63,14 @@ $json = ConvertTo-Json $locJson -Depth 5
 Write-Host "(NETCORE_ENGINEERING_TELEMETRY=Build) LocProject.json generated:`n`n$json`n`n"
 Pop-Location
 
-New-Item "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" -Force
-Set-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" $json
-Copy-Item "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" "$env:BUILD_ARTIFACTSTAGINGDIRECTORY\loc"
+if ($CreateFile -eq "true") {
+    New-Item "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" -Force
+    Set-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" $json
+}
+else {
+    $currentLocProject = Get-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" | ConvertTo-Json
+    if ($locJson -ne $currentLocProject) {
+        Write-Error "Existing LocProject.json differs from generated LocProject.json; please download the LocProject.json from artifacts and diff them to compare."
+        exit 1
+    }
+}

@@ -10,7 +10,8 @@ parameters:
   GithubPat: $(BotAccount-dotnet-bot-repo-PAT)
 
   CreatePr: true
-  
+  CreateFile: true
+  LanguageSet: VS_Main_Languages
   LclSource: lclFilesInRepo
   LclPackageId: ''
 
@@ -30,6 +31,9 @@ jobs:
     - task: Powershell@2
       inputs:
         filePath: $(Build.SourcesDirectory)/eng/common/generate-locproject.ps1
+        arguments: >
+          -LanguageSet "${{ parameters.LanguageSet }}"
+          -CreateFile "${{ parameters.CreateFile }}"
       displayName: Generate LocProject.json
 
     - task: OneLocBuild@2
@@ -51,6 +55,15 @@ jobs:
       displayName: Publish Localization Files
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)/loc'
+        PublishLocation: Container
+        ArtifactName: Loc
+      continueOnError: true
+      condition: always()
+
+    - task: PublishBuildArtifacts@1
+      displayName: Publish LocProject.json
+      inputs:
+        PathtoPublish: '$(Build.SourcesDirectory)/Localize/'
         PublishLocation: Container
         ArtifactName: Loc
       continueOnError: true
