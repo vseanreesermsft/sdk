@@ -14,18 +14,18 @@ if (Test-Path -Path $exclusionsFilePath)
 }
 
 Push-Location "$env:BUILD_SOURCESDIRECTORY" # push location for Resolve-Path -Relative to work
-$jsonFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY" | where { $_.FullName -Match "en\\strings.json" }
+$jsonFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY" | Where-Object { $_.FullName -Match "en\\strings.json" }
 $xlfFiles = @()
 
 $allXlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.xlf"
 $langXlfFiles = @()
 if ($allXlfFiles.Length -gt 0) {
-    $isMatch = $allXlfFiles[0].FullName -Match "\.([\w-]+)\.xlf"
+    $isMatch = $allXlfFiles[0].FullName -Match "\.([\w-]+)\.xlf" # matches '[langcode].xlf'
     $firstLangCode = $Matches.1
     $langXlfFiles = Get-ChildItem -Recurse -Path "$env:BUILD_SOURCESDIRECTORY\*\*.$firstLangCode.xlf"
 }
 $langXlfFiles | ForEach-Object {
-    $isMatch = $_.Name -Match "([^.]+)\.[\w-]+\.xlf"
+    $isMatch = $_.Name -Match "([^.]+)\.[\w-]+\.xlf" # matches '[filename].[langcode].xlf'
     $xlfFiles += Copy-Item "$($_.FullName)" -Destination "$($_.Directory.FullName)\$($Matches.1).xlf" -PassThru
 }
 
@@ -68,9 +68,15 @@ if ($CreateFile -eq "true") {
     Set-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" $json
 }
 else {
-    $currentLocProject = Get-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json" | ConvertTo-Json
-    if ($locJson -ne $currentLocProject) {
-        Write-Error "Existing LocProject.json differs from generated LocProject.json; please download the LocProject.json from artifacts and diff them to compare."
+    New-Item "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject-generated.json" -Force
+    Set-Content "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject-generated.json" $json
+
+    if ((Get-FileHash "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject-generated.json").Hash  -ne (Get-FileHash "$env:BUILD_SOURCESDIRECTORY\Localize\LocProject.json").Hash) {
+        Write-Error "Existing LocProject.json differs from generated LocProject.json. Download LocProject-generated.json and compare them."
+        
         exit 1
+    }
+    else {
+        Write-Host "Generated LocProject.json and current LocProject.json are identical."
     }
 }
