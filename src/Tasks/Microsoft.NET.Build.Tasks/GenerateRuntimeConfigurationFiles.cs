@@ -10,6 +10,7 @@ using Microsoft.Build.Utilities;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
+using NuGet.Frameworks;
 using NuGet.ProjectModel;
 
 namespace Microsoft.NET.Build.Tasks
@@ -126,7 +127,7 @@ namespace Microsoft.NET.Build.Tasks
                 LockFile lockFile = new LockFileCache(this).GetLockFile(AssetsFilePath);
 
                 ProjectContext projectContext = lockFile.CreateProjectContext(
-                    NuGetUtils.ParseFrameworkName(TargetFrameworkMoniker),
+                    TargetFramework,
                     RuntimeIdentifier,
                     PlatformLibraryName,
                     RuntimeFrameworks,
@@ -179,7 +180,7 @@ namespace Microsoft.NET.Build.Tasks
                                    LockFileTargetLibrary lockFilePlatformLibrary,
                                    bool isFrameworkDependent)
         {
-            runtimeOptions.Tfm = TargetFramework;
+            runtimeOptions.Tfm = NuGetFramework.Parse(TargetFrameworkMoniker).GetShortFolderName();
 
             var frameworks = new List<RuntimeConfigFramework>();
             if (runtimeFrameworks == null || runtimeFrameworks.Length == 0)

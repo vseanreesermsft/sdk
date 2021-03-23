@@ -2,15 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.DotNet.Cli.Utils;
-using Microsoft.DotNet.PlatformAbstractions;
 using Microsoft.NET.TestFramework;
 using Microsoft.NET.TestFramework.Assertions;
 using Microsoft.NET.TestFramework.Commands;
@@ -26,7 +25,7 @@ namespace Microsoft.NET.Build.Tests
         {
         }
 
-        [PlatformSpecificTheory(Platform.Windows, Platform.Linux, Platform.FreeBSD)]
+        [PlatformSpecificTheory(TestPlatforms.Windows | TestPlatforms.Linux | TestPlatforms.FreeBSD)]
         [InlineData("netcoreapp3.0")]
         public void It_builds_a_runnable_apphost_by_default(string targetFramework)
         {
@@ -35,7 +34,7 @@ namespace Microsoft.NET.Build.Tests
                 .WithSource()
                 .WithTargetFramework(targetFramework);
 
-            var buildCommand = new BuildCommand(Log, testAsset.TestRoot);
+            var buildCommand = new BuildCommand(testAsset);
             buildCommand
                 .Execute()
                 .Should()
@@ -65,7 +64,7 @@ namespace Microsoft.NET.Build.Tests
                 .HaveStdOutContaining("Hello World!");
         }
 
-        [PlatformSpecificFact(Platform.Darwin)]
+        [PlatformSpecificFact(TestPlatforms.OSX)]
         public void It_builds_a_runnable_apphost_if_opt_in_on_mac()
         {
             var targetFramework = "netcoreapp3.0";
@@ -74,7 +73,7 @@ namespace Microsoft.NET.Build.Tests
                 .WithSource()
                 .WithTargetFramework(targetFramework);
 
-            var buildCommand = new BuildCommand(Log, testAsset.TestRoot);
+            var buildCommand = new BuildCommand(testAsset);
             buildCommand
                 .Execute(new string[] {
                     "/restore", "/p:UseAppHost=true",
@@ -101,7 +100,7 @@ namespace Microsoft.NET.Build.Tests
         [InlineData("netcoreapp3.0")] // only on macOS
         public void It_does_not_build_with_an_apphost_by_default_before_netcoreapp_3_or_macOs(string targetFramework)
         {
-            if (targetFramework == "netcoreapp3.0" && RuntimeEnvironment.OperatingSystemPlatform != Platform.Darwin)
+            if (targetFramework == "netcoreapp3.0" && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 return;
             }
@@ -111,7 +110,7 @@ namespace Microsoft.NET.Build.Tests
                 .WithSource()
                 .WithTargetFramework(targetFramework);
 
-            var buildCommand = new BuildCommand(Log, testAsset.TestRoot);
+            var buildCommand = new BuildCommand(testAsset);
             buildCommand
                 .Execute()
                 .Should()
@@ -141,7 +140,7 @@ namespace Microsoft.NET.Build.Tests
                 .CopyTestAsset("HelloWorld")
                 .WithSource();
 
-            var buildCommand = new BuildCommand(Log, testAsset.TestRoot);
+            var buildCommand = new BuildCommand(testAsset);
             buildCommand
                 .Execute(new string[] {
                     $"/p:TargetFramework={targetFramework}",
@@ -185,7 +184,7 @@ namespace Microsoft.NET.Build.Tests
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand.Execute()
                 .Should()
@@ -199,7 +198,7 @@ namespace Microsoft.NET.Build.Tests
             apphostVersion.Should().Be(version);
         }
 
-        [WindowsOnlyFact]
+        [WindowsOnlyFact(Skip = "https://github.com/dotnet/coreclr/issues/27275")]
         public void FSharp_app_can_customize_the_apphost()
         {
             var targetFramework = "netcoreapp3.0";
@@ -213,7 +212,7 @@ namespace Microsoft.NET.Build.Tests
                     propertyGroup.Element(ns + "TargetFramework").SetValue(targetFramework);
                 });
 
-            var buildCommand = new BuildCommand(Log, testAsset.TestRoot);
+            var buildCommand = new BuildCommand(testAsset);
             buildCommand
                 .Execute("/p:CopyLocalLockFileAssemblies=false")
                 .Should()
@@ -248,7 +247,7 @@ namespace Microsoft.NET.Build.Tests
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testAsset.TestRoot, testProject.Name);
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand.Execute()
                 .Should()
@@ -256,7 +255,7 @@ namespace Microsoft.NET.Build.Tests
 
         }
 
-        [Fact]
+        [WindowsOnlyFact] // Windows-only due to https://github.com/dotnet/corefx/issues/42455
         public void It_retries_on_failure_to_create_apphost()
         {
             const string TFM = "netcoreapp3.0";
@@ -274,9 +273,7 @@ namespace Microsoft.NET.Build.Tests
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var projectDirectory = Path.Combine(testAsset.TestRoot, testProject.Name);
-
-            var buildCommand = new BuildCommand(Log, projectDirectory);
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand.Execute()
                 .Should()
@@ -290,7 +287,7 @@ namespace Microsoft.NET.Build.Tests
                     testProject.Name + ".dll"),
                 DateTime.UtcNow.AddSeconds(5));
 
-            var intermediateAppHost = Path.Combine(intermediateDirectory, testProject.Name + Constants.ExeSuffix);
+            var intermediateAppHost = Path.Combine(intermediateDirectory, "apphost" + Constants.ExeSuffix);
 
             using (var stream = new FileStream(intermediateAppHost, FileMode.Open, FileAccess.Read, FileShare.None))
             {

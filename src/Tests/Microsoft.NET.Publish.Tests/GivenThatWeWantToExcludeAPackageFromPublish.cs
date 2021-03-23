@@ -3,8 +3,6 @@
 
 using System.IO;
 using System.Runtime.InteropServices;
-using Microsoft.DotNet.Cli.Utils;
-using Microsoft.DotNet.PlatformAbstractions;
 using Microsoft.NET.TestFramework;
 using Microsoft.NET.TestFramework.Assertions;
 using Microsoft.NET.TestFramework.Commands;
@@ -13,7 +11,6 @@ using System.Xml.Linq;
 using Xunit.Abstractions;
 using System.Collections.Generic;
 using Microsoft.NET.TestFramework.ProjectConstruction;
-using RuntimeEnvironment = Microsoft.DotNet.PlatformAbstractions.RuntimeEnvironment;
 
 namespace Microsoft.NET.Publish.Tests
 {
@@ -61,7 +58,7 @@ namespace Microsoft.NET.Publish.Tests
                 "HelloWorld.runtimeconfig.json"
             };
 
-            if (shouldIncludeExecutable && RuntimeEnvironment.OperatingSystemPlatform != Platform.Darwin)
+            if (shouldIncludeExecutable && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 expectedFiles.Add("HelloWorld" + EnvironmentInfo.ExecutableExtension);
             }
@@ -106,7 +103,7 @@ namespace Microsoft.NET.Publish.Tests
                 "HelloWorld.runtimeconfig.json"
             };
 
-            if (shouldIncludeExecutable && RuntimeEnvironment.OperatingSystemPlatform != Platform.Darwin)
+            if (shouldIncludeExecutable && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 expectedFiles.Add("HelloWorld" + EnvironmentInfo.ExecutableExtension);
             }
@@ -158,7 +155,7 @@ namespace Microsoft.NET.Publish.Tests
                 expectedFiles.Add("System.Runtime.Serialization.Primitives.dll");
             }
 
-            if (shouldIncludeExecutable && RuntimeEnvironment.OperatingSystemPlatform != Platform.Darwin)
+            if (shouldIncludeExecutable && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 expectedFiles.Add("HelloWorld" + EnvironmentInfo.ExecutableExtension);
             }
@@ -195,6 +192,34 @@ namespace Microsoft.NET.Publish.Tests
             var publishCommand = new PublishCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
 
             publishCommand.Execute().Should().Pass();
+        }
+
+        [Fact]
+        public void It_does_not_exclude_packages_depended_on_by_non_privateassets_references()
+        {
+            var testProject = new TestProject()
+            {
+                Name = "PrivateAssetsTransitive",
+                IsSdkProject = true,
+                IsExe = true,
+                TargetFrameworks = "net5.0"
+            };
+
+            //  Both these packages depend on NewtonSoft.Json.  Since only one of the package references specifies PrivateAssets=All,
+            //  NewtonSoft.Json should be included in the publish output
+            testProject.PackageReferences.Add(new TestPackageReference("Newtonsoft.Json.Schema", "3.0.13"));
+            testProject.PackageReferences.Add(new TestPackageReference("Microsoft.Extensions.DependencyModel", "3.1.6", privateAssets: "all"));
+
+            var testAsset = _testAssetsManager.CreateTestProject(testProject);
+
+            var publishCommand = new PublishCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            publishCommand.Execute().Should().Pass();
+
+            var publishDirectory = publishCommand.GetOutputDirectory(testProject.TargetFrameworks);
+
+            publishDirectory.Should().HaveFile("Newtonsoft.Json.dll");
+            publishDirectory.Should().HaveFile("Newtonsoft.Json.Schema.dll");
+            publishDirectory.Should().NotHaveFile("Microsoft.Extensions.DependencyModel");
         }
     }
 }

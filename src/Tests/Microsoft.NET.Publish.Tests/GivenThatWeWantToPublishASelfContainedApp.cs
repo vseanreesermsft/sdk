@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using FluentAssertions;
-using Microsoft.DotNet.PlatformAbstractions;
 using Microsoft.NET.Build.Tasks;
 using Microsoft.NET.TestFramework;
 using Microsoft.NET.TestFramework.Assertions;
@@ -10,6 +9,7 @@ using Microsoft.NET.TestFramework.Commands;
 using Microsoft.NET.TestFramework.ProjectConstruction;
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -45,7 +45,7 @@ namespace Microsoft.NET.Publish.Tests
         [Fact]
         public void It_errors_when_publishing_self_contained_without_apphost()
         {
-            var runtimeIdentifier = RuntimeEnvironment.GetRuntimeIdentifier();
+            var runtimeIdentifier = RuntimeInformation.RuntimeIdentifier;
 
             var testAsset = _testAssetsManager
                 .CopyTestAsset(TestProjectName)
@@ -68,7 +68,7 @@ namespace Microsoft.NET.Publish.Tests
         [Fact]
         public void It_does_not_fail_publishing_a_self_twice()
         {
-            var runtimeIdentifier = RuntimeEnvironment.GetRuntimeIdentifier();
+            var runtimeIdentifier = RuntimeInformation.RuntimeIdentifier;
 
             var testAsset = _testAssetsManager
                 .CopyTestAsset(TestProjectName)
@@ -78,7 +78,7 @@ namespace Microsoft.NET.Publish.Tests
                     $"/p:TargetFramework={TargetFramework}",
                     $"/p:RuntimeIdentifier={runtimeIdentifier}"};
 
-            var restoreCommand = new RestoreCommand(Log, testAsset.TestRoot);
+            var restoreCommand = new RestoreCommand(testAsset);
 
             restoreCommand.Execute(msbuildArgs);
 
@@ -139,13 +139,13 @@ namespace Microsoft.NET.Publish.Tests
             var args = new string[]
             {
                 "/p:SelfContained=true",
-                "/p:TargetFramework=netcoreapp3.0",
-                $"/p:RuntimeIdentifier={EnvironmentInfo.GetCompatibleRid("netcoreapp3.0")}"
+                "/p:TargetFramework=netcoreapp3.1",
+                $"/p:RuntimeIdentifier={EnvironmentInfo.GetCompatibleRid("netcoreapp3.1")}"
             };
 
             var projectRoot = Path.Combine(testAsset.TestRoot, "main");
 
-            new RestoreCommand(Log, projectRoot).Execute(args);
+            new RestoreCommand(testAsset, "main").Execute(args);
 
             new PublishCommand(Log, projectRoot)
                 .Execute(args)

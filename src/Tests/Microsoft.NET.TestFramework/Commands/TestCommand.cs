@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using Xunit.Abstractions;
 using System.Diagnostics;
 using System.Linq;
+using System;
 
 namespace Microsoft.NET.TestFramework.Commands
 {
@@ -18,6 +19,12 @@ namespace Microsoft.NET.TestFramework.Commands
         public string WorkingDirectory { get; set; }
 
         public List<string> Arguments { get; set; } = new List<string>();
+
+        public List<string> EnvironmentToRemove { get; } = new List<string>();
+
+        //  These only work via Execute(), not when using GetProcessStartInfo()
+        public Action<string> CommandOutputHandler { get; set; }
+        public Action<Process> ProcessStartedHandler { get; set; }
 
         protected TestCommand(ITestOutputHelper log)
         {
@@ -32,12 +39,23 @@ namespace Microsoft.NET.TestFramework.Commands
             return this;
         }
 
+        public TestCommand WithWorkingDirectory(string workingDirectory)
+        {
+            WorkingDirectory = workingDirectory;
+            return this;
+        }
+
         private SdkCommandSpec CreateCommandSpec(IEnumerable<string> args)
         {
             var commandSpec = CreateCommand(args);
             foreach (var kvp in _environment)
             {
                 commandSpec.Environment[kvp.Key] = kvp.Value;
+            }
+
+            foreach (var envToRemove in EnvironmentToRemove)
+            {
+                commandSpec.EnvironmentToRemove.Add(envToRemove);
             }
 
             if (WorkingDirectory != null)
@@ -57,7 +75,9 @@ namespace Microsoft.NET.TestFramework.Commands
         {
             var commandSpec = CreateCommandSpec(args);
 
-            return commandSpec.ToProcessStartInfo();
+            var psi = commandSpec.ToProcessStartInfo();
+
+            return psi;
         }
 
         public CommandResult Execute(params string[] args)
@@ -73,7 +93,12 @@ namespace Microsoft.NET.TestFramework.Commands
                 .CaptureStdOut()
                 .CaptureStdErr();
 
-            var result = command.Execute();
+            if (CommandOutputHandler != null)
+            {
+                command.OnOutputLine(CommandOutputHandler);
+            }
+
+            var result = ((Command)command).Execute(ProcessStartedHandler);
 
             Log.WriteLine($"> {result.StartInfo.FileName} {result.StartInfo.Arguments}");
             Log.WriteLine(result.StdOut);

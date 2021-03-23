@@ -15,10 +15,6 @@ using System.Collections.Generic;
 using System;
 using System.Runtime.CompilerServices;
 using Xunit.Abstractions;
-using Microsoft.NET.TestFramework.ProjectConstruction;
-using NuGet.ProjectModel;
-using NuGet.Common;
-using Newtonsoft.Json.Linq;
 
 namespace Microsoft.NET.Build.Tests
 {
@@ -28,16 +24,14 @@ namespace Microsoft.NET.Build.Tests
         {
         }
 
-        [Fact]
+        [Fact(Skip = "https://github.com/dotnet/coreclr/issues/27275")]
         public void It_builds_the_library_successfully()
         {
             var testAsset = _testAssetsManager
                 .CopyTestAsset("AppWithLibraryFS")
                 .WithSource();
 
-            var libraryProjectDirectory = Path.Combine(testAsset.TestRoot, "TestLibrary");
-
-            var buildCommand = new BuildCommand(Log, libraryProjectDirectory);
+            var buildCommand = new BuildCommand(testAsset, "TestLibrary");
             buildCommand
                 .Execute()
                 .Should()
@@ -52,16 +46,14 @@ namespace Microsoft.NET.Build.Tests
             });
         }
 
-        [Fact]
+        [Fact(Skip = "https://github.com/dotnet/coreclr/issues/27275")]
         public void It_builds_the_library_twice_in_a_row()
         {
             var testAsset = _testAssetsManager
                 .CopyTestAsset("AppWithLibraryFS")
                 .WithSource();
 
-            var libraryProjectDirectory = Path.Combine(testAsset.TestRoot, "TestLibrary");
-
-            var buildCommand = new BuildCommand(Log, libraryProjectDirectory);
+            var buildCommand = new BuildCommand(testAsset, "TestLibrary");
             buildCommand
                 .Execute()
                 .Should()
@@ -123,9 +115,7 @@ namespace Microsoft.NET.Build.Tests
                 .CopyTestAsset("AppWithLibraryFS")
                 .WithSource();
 
-            var libraryProjectDirectory = Path.Combine(testAsset.TestRoot, "TestLibrary");
-
-            var buildCommand = new BuildCommand(Log, libraryProjectDirectory);
+            var buildCommand = new BuildCommand(testAsset, "TestLibrary");
             buildCommand
                 .ExecuteWithoutRestore()
                 .Should()
@@ -154,7 +144,7 @@ namespace Microsoft.NET.Build.Tests
                 .Pass();
         }
 
-        [Theory]
+        [Theory(Skip = "https://github.com/dotnet/coreclr/issues/27275")]
         [InlineData("Debug", "DEBUG")]
         [InlineData("Release", "RELEASE")]
         [InlineData("CustomConfiguration", "CUSTOMCONFIGURATION")]
@@ -183,11 +173,12 @@ namespace Microsoft.NET.Build.Tests
             definedConstants.Should().BeEquivalentTo(new[] { expectedDefine, "TRACE", "NETSTANDARD", "NETSTANDARD1_6" });
         }
 
-        [Theory]
+        [Theory(Skip = "https://github.com/dotnet/coreclr/issues/27275")]
         [InlineData("netstandard1.6", new[] { "NETSTANDARD", "NETSTANDARD1_6" }, false)]
         [InlineData("net45", new[] { "NETFRAMEWORK", "NET45" }, true)]
         [InlineData("net461", new[] { "NETFRAMEWORK", "NET461" }, true)]
         [InlineData("netcoreapp2.0", new[] { "NETCOREAPP", "NETCOREAPP2_0" }, false)]
+        [InlineData("net5.0", new[] { "NETCOREAPP", "NET", "NET5_0" }, false)]
         public void It_implicitly_defines_compilation_constants_for_the_target_framework(string targetFramework, string[] expectedDefines, bool buildOnlyOnWindows)
         {
             bool shouldCompile = true;

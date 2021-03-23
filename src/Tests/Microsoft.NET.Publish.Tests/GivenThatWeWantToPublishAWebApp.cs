@@ -3,7 +3,6 @@
 
 using FluentAssertions;
 using Microsoft.DotNet.Cli.Utils;
-using Microsoft.DotNet.PlatformAbstractions;
 using Microsoft.NET.TestFramework;
 using Microsoft.NET.TestFramework.Assertions;
 using Microsoft.NET.TestFramework.Commands;
@@ -32,7 +31,7 @@ namespace Microsoft.NET.Publish.Tests
                 "-p:Configuration=Release"
             };
 
-            var restoreCommand = new RestoreCommand(Log, testAsset.TestRoot);
+            var restoreCommand = new RestoreCommand(testAsset);
             restoreCommand
                 .Execute(args)
                 .Should()

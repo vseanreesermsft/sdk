@@ -31,6 +31,9 @@ namespace Microsoft.NET.Build.Tasks
         [Required]
         public string DotNetAppHostExecutableNameWithoutExtension { get; set; }
 
+        [Required]
+        public string DotNetSingleFileHostExecutableNameWithoutExtension { get; set; }
+
         /// <summary>
         /// The file name of comhost asset.
         /// </summary>
@@ -48,6 +51,10 @@ namespace Microsoft.NET.Build.Tasks
 
         public ITaskItem[] KnownAppHostPacks { get; set; }
 
+        public bool NuGetRestoreSupported { get; set; } = true;
+
+        public string NetCoreTargetingPackRoot { get; set; }
+
         [Output]
         public ITaskItem[] PackagesToDownload { get; set; }
 
@@ -56,6 +63,9 @@ namespace Microsoft.NET.Build.Tasks
         //  we can resolve the full path later)
         [Output]
         public ITaskItem[] AppHost { get; set; }
+
+        [Output]
+        public ITaskItem[] SingleFileHost { get; set; }
 
         [Output]
         public ITaskItem[] ComHost { get; set; }
@@ -105,6 +115,20 @@ namespace Microsoft.NET.Build.Tasks
                 if (appHostItem != null)
                 {
                     AppHost = new ITaskItem[] { appHostItem };
+                }
+
+                var singlefileHostItem = GetHostItem(
+                    AppHostRuntimeIdentifier,
+                    knownAppHostPacksForTargetFramework,
+                    packagesToDownload,
+                    DotNetSingleFileHostExecutableNameWithoutExtension,
+                    "SingleFileHost",
+                    isExecutable: true,
+                    errorIfNotFound: true);
+
+                if (singlefileHostItem != null)
+                {
+                    SingleFileHost = new ITaskItem[] { singlefileHostItem };
                 }
 
                 var comHostItem = GetHostItem(
@@ -259,14 +283,27 @@ namespace Microsoft.NET.Build.Tasks
                 }
                 else
                 {
+                    // C++/CLI does not support package download && dedup error
+                    if (!NuGetRestoreSupported && !packagesToDownload.Any(p => p.ItemSpec == hostPackName))
+                    {
+                        Log.LogError(
+                                    Strings.TargetingApphostPackMissingCannotRestore,
+                                    "Apphost",
+                                    $"{NetCoreTargetingPackRoot}\\{hostPackName}",
+                                    selectedAppHostPack.GetMetadata("TargetFramework") ?? "",
+                                    hostPackName,
+                                    appHostPackVersion
+                                    );
+                    }
+
                     //  Download apphost pack
                     TaskItem packageToDownload = new TaskItem(hostPackName);
                     packageToDownload.SetMetadata(MetadataKeys.Version, appHostPackVersion);
 
                     packagesToDownload.Add(packageToDownload);
 
-                    appHostItem.SetMetadata(MetadataKeys.PackageName, hostPackName);
-                    appHostItem.SetMetadata(MetadataKeys.PackageVersion, appHostPackVersion);
+                    appHostItem.SetMetadata(MetadataKeys.NuGetPackageId, hostPackName);
+                    appHostItem.SetMetadata(MetadataKeys.NuGetPackageVersion, appHostPackVersion);
                 }
 
                 appHostItem.SetMetadata(MetadataKeys.PathInPackage, hostRelativePathInPackage);

@@ -162,7 +162,7 @@ namespace Microsoft.NET.Publish.Tests
         {
             string project = "SimpleDependencies";
             string targetFramework = "netcoreapp2.1";
-            var rid = Microsoft.DotNet.PlatformAbstractions.RuntimeEnvironment.GetRuntimeIdentifier();
+            var rid = RuntimeInformation.RuntimeIdentifier;
             TestAsset simpleDependenciesAsset = _testAssetsManager
                 .CopyTestAsset(project)
                 .WithSource()
@@ -274,7 +274,7 @@ namespace Microsoft.NET.Publish.Tests
             var appAsset = _testAssetsManager.CreateTestProject(appProject, identifier: identifier);
             var appSourcePath  = Path.Combine(appAsset.TestRoot, "TestApp");
 
-            new RestoreCommand(Log, appSourcePath).Execute().Should().Pass();
+            new RestoreCommand(appAsset, "TestApp").Execute().Should().Pass();
             var appPublishCommand = new PublishCommand(Log, appSourcePath);
             var appPublishResult = appPublishCommand.Execute("/p:" + property);
             appPublishResult.Should().Pass();

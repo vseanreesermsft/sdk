@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
+using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 using Microsoft.Build.Utilities;
 using NuGet.Frameworks;
@@ -11,6 +11,14 @@ namespace Microsoft.NET.TestFramework.ProjectConstruction
 {
     public class TestProject
     {
+        public TestProject([CallerMemberName] string name = null)
+        {
+            if (name != null)
+            {
+                Name = name;
+            }
+        }
+
         public string Name { get; set; }
 
         public bool IsSdkProject { get; set; }
@@ -53,35 +61,20 @@ namespace Microsoft.NET.TestFramework.ProjectConstruction
 
         public Dictionary<string, string> AdditionalItems { get; } = new Dictionary<string, string>();
 
-        private static string GetShortTargetFrameworkIdentifier(string targetFramework)
-        {
-            int identifierLength = 0;
-            for (; identifierLength < targetFramework.Length; identifierLength++)
-            {
-                if (!char.IsLetter(targetFramework[identifierLength]))
-                {
-                    break;
-                }
-            }
-
-            string identifier = targetFramework.Substring(0, identifierLength);
-            return identifier;
-        }
-
-        public IEnumerable<string> ShortTargetFrameworkIdentifiers
+        public IEnumerable<string> TargetFrameworkIdentifiers
         {
             get
             {
                 if (!IsSdkProject)
                 {
                     //  Assume .NET Framework
-                    yield return "net";
+                    yield return ".NETFramework";
                     yield break;
                 }
 
                 foreach (var target in TargetFrameworks.Split(';'))
                 {
-                    yield return GetShortTargetFrameworkIdentifier(target);
+                    yield return NuGetFramework.Parse(target).Framework;
                 }
             }
         }
@@ -96,9 +89,9 @@ namespace Microsoft.NET.TestFramework.ProjectConstruction
                 }
 
                 //  Currently can't build projects targeting .NET Framework on non-Windows: https://github.com/dotnet/sdk/issues/335
-                foreach (var identifier in ShortTargetFrameworkIdentifiers)
+                foreach (var identifier in TargetFrameworkIdentifiers)
                 {
-                    if (identifier.Equals("net", StringComparison.OrdinalIgnoreCase))
+                    if (identifier.Equals(".NETFramework", StringComparison.OrdinalIgnoreCase))
                     {
                         return false;
                     }
@@ -182,17 +175,6 @@ namespace Microsoft.NET.TestFramework.ProjectConstruction
                 packageReferenceItemGroup.Add(new XElement(ns + "DotNetCliToolReference",
                     new XAttribute("Include", $"{dotnetCliToolReference.ID}"),
                     new XAttribute("Version", $"{dotnetCliToolReference.Version}")));
-            }
-
-            //  If targeting .NET Framework and a required targeting pack isn't installed, add a
-            //  PackageReference to get the targeting pack from a NuGet package
-            if (NeedsReferenceAssemblyPackages())
-            {
-                packageReferenceItemGroup.Add(new XElement(ns + "PackageReference",
-                    new XAttribute("Include", $"Microsoft.NETFramework.ReferenceAssemblies"),
-                    new XAttribute("Version", $"1.0.0-preview.2")));
-
-                propertyGroup.Add(new XElement(ns + "RestoreAdditionalProjectSources", "$(RestoreAdditionalProjectSources);https://dotnet.myget.org/F/roslyn-tools/api/v3/index.json"));
             }
 
             var targetFrameworks = IsSdkProject ? TargetFrameworks.Split(';') : new[] { "net" };
@@ -401,53 +383,10 @@ namespace {this.Name}
             }
         }
 
-        private bool NeedsReferenceAssemblyPackages()
+        public static bool ReferenceAssembliesAreInstalled(TargetDotNetFrameworkVersion targetFrameworkVersion)
         {
-            //  Check to see if NuGet packages for reference assemblies need to be referenced (because
-            //  the targeting pack is not installed)
-            bool needsReferenceAssemblyPackages = false;
-            if (IsSdkProject)
-            {
-                foreach (var shortFrameworkName in TargetFrameworks.Split(';').Where(tf => GetShortTargetFrameworkIdentifier(tf) == "net"))
-                {
-                    //  Normalize version to the form used in the reference assemblies path
-                    var version = NuGetFramework.Parse(shortFrameworkName).Version;
-                    version = new Version(version.Major, version.Minor, version.Build);
-                    if (version.Build == 0)
-                    {
-                        version = new Version(version.Major, version.Minor);
-                    }
-                    
-                    if (!ReferenceAssembliesAreInstalled(version.ToString()))
-                    {
-                        needsReferenceAssemblyPackages = true;
-                    }
-                }
-            }
-            else
-            {
-                needsReferenceAssemblyPackages = !ReferenceAssembliesAreInstalled(TargetFrameworkVersion);
-            }
-
-            return needsReferenceAssemblyPackages;
-        }
-
-        public static bool ReferenceAssembliesAreInstalled(string targetFrameworkVersion)
-        {
-            if (!targetFrameworkVersion.StartsWith('v'))
-            {
-                targetFrameworkVersion = "v" + targetFrameworkVersion;
-            }
-
-            // Use the MSBuild API to find the path to the 4.6.1 reference assemblies, and locate the desired reference assemblies relative to that.
-            var net461referenceAssemblies = ToolLocationHelper.GetPathToDotNetFrameworkReferenceAssemblies(TargetDotNetFrameworkVersion.Version461);
-            if (net461referenceAssemblies == null)
-            {
-                //  4.6.1 reference assemblies not found, assume that the version we want isn't available either
-                return false;
-            }
-            var requestedReferenceAssembliesPath = Path.Combine(new DirectoryInfo(net461referenceAssemblies).Parent.FullName, targetFrameworkVersion);
-            return Directory.Exists(requestedReferenceAssembliesPath);
+            var referenceAssemblies = ToolLocationHelper.GetPathToDotNetFrameworkReferenceAssemblies(targetFrameworkVersion);
+            return referenceAssemblies != null;
         }
     }
 }

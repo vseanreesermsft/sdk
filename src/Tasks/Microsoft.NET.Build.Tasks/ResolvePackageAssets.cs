@@ -45,10 +45,10 @@ namespace Microsoft.NET.Build.Tasks
         public string ProjectPath { get; set; }
 
         /// <summary>
-        /// TFM to use for compile-time assets.
+        /// TargetFramework to use for compile-time assets.
         /// </summary>
         [Required]
-        public string TargetFrameworkMoniker { get; set; }
+        public string TargetFramework { get; set; }
 
         /// <summary>
         /// RID to use for runtime assets (may be empty)
@@ -433,7 +433,7 @@ namespace Microsoft.NET.Build.Tasks
                             writer.Write(r.ItemSpec ?? "");
                         }
                     }
-                    writer.Write(TargetFrameworkMoniker);
+                    writer.Write(TargetFramework);
                     writer.Write(VerifyMatchingImplicitPackageVersion);
                 }
 
@@ -634,7 +634,7 @@ namespace Microsoft.NET.Build.Tasks
             private HashSet<string> _copyLocalPackageExclusions;
             private HashSet<string> _publishPackageExclusions;
             private Placeholder _metadataStringTablePosition;
-            private NuGetFramework _targetFramework;
+            private string _targetFramework;
             private int _itemCount;
 
             public bool CanWriteToCacheFile { get; set; }
@@ -645,7 +645,7 @@ namespace Microsoft.NET.Build.Tasks
 
             public CacheWriter(ResolvePackageAssets task)
             {
-                _targetFramework = NuGetUtils.ParseFrameworkName(task.TargetFrameworkMoniker);
+                _targetFramework = task.TargetFramework;
 
                 _task = task;
                 _lockFile = new LockFileCache(task).GetLockFile(task.ProjectAssetsFile);
@@ -663,8 +663,8 @@ namespace Microsoft.NET.Build.Tasks
                 CanWriteToCacheFile = true;
                 if (task.DesignTimeBuild)
                 {
-                    _compileTimeTarget = _lockFile.GetTarget(_targetFramework, runtimeIdentifier: null);
-                    _runtimeTarget = _lockFile.GetTarget(_targetFramework, _task.RuntimeIdentifier);
+                    _compileTimeTarget = _lockFile.GetTargetAndReturnNullIfNotFound(_targetFramework, runtimeIdentifier: null);
+                    _runtimeTarget = _lockFile.GetTargetAndReturnNullIfNotFound(_targetFramework, _task.RuntimeIdentifier);
                     if (_compileTimeTarget == null)
                     {
                         _compileTimeTarget = new LockFileTarget();
@@ -678,7 +678,7 @@ namespace Microsoft.NET.Build.Tasks
                 }
                 else
                 {
-                    _compileTimeTarget = _lockFile.GetTargetAndThrowIfNotFound(_targetFramework, runtime: null);
+                    _compileTimeTarget = _lockFile.GetTargetAndThrowIfNotFound(_targetFramework, runtimeIdentifier: null); 
                     _runtimeTarget = _lockFile.GetTargetAndThrowIfNotFound(_targetFramework, _task.RuntimeIdentifier);
                 }
                 
@@ -1065,7 +1065,7 @@ namespace Microsoft.NET.Build.Tasks
                     LockFileTarget runtimeTarget;
                     if (_task.DesignTimeBuild)
                     {
-                        runtimeTarget = _lockFile.GetTarget(_targetFramework, runtimeIdentifier) ?? new LockFileTarget();
+                        runtimeTarget = _lockFile.GetTargetAndReturnNullIfNotFound(_targetFramework, runtimeIdentifier) ?? new LockFileTarget();
                     }
                     else
                     {
@@ -1086,13 +1086,25 @@ namespace Microsoft.NET.Build.Tasks
             /// </summary>
             private bool CanResolveApphostFromFrameworkReference()
             {
-                if (_targetFramework.Version.Major >= 3
-                    && _targetFramework.Framework.Equals(".NETCoreApp", StringComparison.OrdinalIgnoreCase))
+                if (!CanWriteToCacheFile)
                 {
+                    //  If we can't write to the cache file, it's because this is a design-time build where the
+                    //  TargetFramework doesn't match what's in the assets file.  So don't try looking up the
+                    //  TargetFramework in the assets file.
                     return false;
                 }
+                else
+                { 
+                    var targetFramework = _lockFile.GetTargetAndThrowIfNotFound(_targetFramework, null).TargetFramework;
 
-                return true;
+                    if (targetFramework.Version.Major >= 3
+                        && targetFramework.Framework.Equals(".NETCoreApp", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+
+                    return true;
+                }
             }
 
             private void WritePackageFolders()
@@ -1252,8 +1264,6 @@ namespace Microsoft.NET.Build.Tasks
                         string itemSpec = _packageResolver.ResolvePackageAssetPath(library, asset.Path);
                         WriteItem(itemSpec, library);
                         WriteMetadata(MetadataKeys.PathInPackage, asset.Path);
-                        WriteMetadata(MetadataKeys.PackageName, library.Name);
-                        WriteMetadata(MetadataKeys.PackageVersion, library.Version.ToString().ToLowerInvariant());
 
                         writeMetadata?.Invoke(library, asset);
                     }

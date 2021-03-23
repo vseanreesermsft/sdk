@@ -3,12 +3,12 @@
 
 using FluentAssertions;
 using Microsoft.DotNet.Cli.Utils;
-using Microsoft.DotNet.PlatformAbstractions;
 using Microsoft.NET.TestFramework;
 using Microsoft.NET.TestFramework.Assertions;
 using Microsoft.NET.TestFramework.Commands;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Xml.Linq;
 using Xunit;
 using Xunit.Abstractions;
@@ -24,7 +24,7 @@ namespace Microsoft.NET.Build.Tests
         [Fact]
         public void It_builds_a_RID_specific_runnable_output()
         {
-            var runtimeIdentifier = RuntimeEnvironment.GetRuntimeIdentifier();
+            var runtimeIdentifier = RuntimeInformation.RuntimeIdentifier;
             string[] msbuildArgs = new[]
             {
                 $"/p:RuntimeIdentifier={runtimeIdentifier}",
@@ -35,15 +35,13 @@ namespace Microsoft.NET.Build.Tests
                 .CopyTestAsset("AppWithLibraryAndRid")
                 .WithSource();
 
-            var projectPath = Path.Combine(testAsset.TestRoot, "App");
-
-            var restoreCommand = new RestoreCommand(Log, projectPath, "App.csproj");
+            var restoreCommand = new RestoreCommand(testAsset, "App");
             restoreCommand
                 .Execute(msbuildArgs)
                 .Should()
                 .Pass();
 
-            var buildCommand = new BuildCommand(Log, projectPath);
+            var buildCommand = new BuildCommand(testAsset, "App");
 
             buildCommand
                 .Execute(msbuildArgs)
@@ -66,7 +64,7 @@ namespace Microsoft.NET.Build.Tests
         [Fact]
         public void It_builds_a_framework_dependent_RID_specific_runnable_output()
         {
-            var runtimeIdentifier = RuntimeEnvironment.GetRuntimeIdentifier();
+            var runtimeIdentifier = RuntimeInformation.RuntimeIdentifier;
             var testAsset = _testAssetsManager
                 .CopyTestAsset("AppWithLibraryAndRid", "BuildFrameworkDependentRIDSpecific")
                 .WithSource();
@@ -84,15 +82,13 @@ namespace Microsoft.NET.Build.Tests
                 });
             }
 
-            var projectPath = Path.Combine(testAsset.TestRoot, "App");
-
-            var restoreCommand = new RestoreCommand(Log, projectPath, "App.csproj");
+            var restoreCommand = new RestoreCommand(testAsset, "App");
             restoreCommand
                 .Execute($"/p:TestRuntimeIdentifier={runtimeIdentifier}")
                 .Should()
                 .Pass();
 
-            var buildCommand = new BuildCommand(Log, projectPath);
+            var buildCommand = new BuildCommand(testAsset, "App");
 
             buildCommand
                 .Execute($"/p:RuntimeIdentifier={runtimeIdentifier}", $"/p:TestRuntimeIdentifier={runtimeIdentifier}", "/p:SelfContained=false")

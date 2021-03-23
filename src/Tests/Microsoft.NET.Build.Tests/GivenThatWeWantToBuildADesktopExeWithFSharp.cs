@@ -27,7 +27,7 @@ namespace Microsoft.NET.Build.Tests
         {
         }
 
-        [WindowsOnlyFact]
+        [WindowsOnlyFact(Skip = "https://github.com/dotnet/coreclr/issues/27275")]
         public void It_builds_a_simple_desktop_app()
         {
             var targetFramework = "net45";
@@ -41,7 +41,7 @@ namespace Microsoft.NET.Build.Tests
                     propertyGroup.Element(ns + "TargetFramework").SetValue(targetFramework);
                 });
 
-            var buildCommand = new BuildCommand(Log, testAsset.TestRoot);
+            var buildCommand = new BuildCommand(testAsset);
             buildCommand
                 .Execute()
                 .Should()
@@ -56,6 +56,21 @@ namespace Microsoft.NET.Build.Tests
                 "FSharp.Core.dll",
                 "System.ValueTuple.dll",
             });
+        }
+
+        [WindowsOnlyFact]
+        public void It_builds_a_simple_net50_app()
+        {
+            var testAsset = _testAssetsManager
+                .CopyTestAsset("HelloWorldFS")
+                .WithSource()
+                .WithTargetFramework("net5.0");
+
+            var buildCommand = new BuildCommand(testAsset);
+            buildCommand
+                .Execute()
+                .Should()
+                .Pass();
         }
     }
 }

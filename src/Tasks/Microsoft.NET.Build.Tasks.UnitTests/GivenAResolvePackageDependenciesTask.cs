@@ -94,7 +94,7 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
             var task = GetExecutedTaskFromPrefix(projectName, out lockFile);
 
             // set of valid targets and packages
-            HashSet<string> validTargets = new HashSet<string>(lockFile.Targets.Select(x => x.Name));
+            HashSet<string> validTargets = new HashSet<string>(lockFile.PackageSpec.TargetFrameworks.Select(tf => tf.TargetAlias));
             HashSet<string> validPackages = new HashSet<string>(lockFile.Libraries.Select(x => $"{x.Name}/{x.Version.ToNormalizedString()}"));
 
             Func<ITaskItem[], bool> allValidParentTarget =
@@ -159,7 +159,7 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
             topLevels.All(t => t.ItemSpec == "LibA/1.2.3").Should().BeTrue();
             topLevels.Select(t => t.GetMetadata(MetadataKeys.ParentTarget))
                 .Should().Contain(new string[] {
-                    ".NETCoreApp,Version=v1.0", ".NETCoreApp,Version=v1.0/osx.10.11-x64"
+                    "netcoreapp1.0", "netcoreapp1.0/osx.10.11-x64"
                 });
         }
 
@@ -171,8 +171,8 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
 
             string lockFileContent = CreateLockFileSnippet(
                 targets: new string[] {
-                    CreateTarget(".NETCoreApp,Version=v1.0", TargetLibA, TargetLibB, TargetLibC),
-                    CreateTarget(".NETCoreApp,Version=v1.0/osx.10.11-x64", TargetLibA, TargetLibB, TargetLibC),
+                    CreateTarget("netcoreapp1.0", TargetLibA, TargetLibB, TargetLibC),
+                    CreateTarget("netcoreapp1.0/osx.10.11-x64", TargetLibA, TargetLibB, TargetLibC),
                 },
                 libraries: new string[] { LibADefn, LibBDefn, LibCDefn },
                 projectFileDependencyGroups: new string[] { NETCoreGroup, NETCoreOsxGroup },
@@ -191,7 +191,7 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
                 }
             );
 
-            var task = GetExecutedTaskFromContents(lockFileContent, out _, target: target1);
+            var task = GetExecutedTaskFromContents(lockFileContent, out _, target: "netcoreapp1.0");
 
             var defs = task.PackageDefinitions.ToLookup(def => def.ItemSpec);
 
@@ -236,14 +236,14 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
             topLevels.Where(t => t.ItemSpec == "LibA/1.2.3")
                 .Select(t => t.GetMetadata(MetadataKeys.ParentTarget))
                 .Should().Contain(new string[] {
-                    ".NETCoreApp,Version=v1.0", ".NETCoreApp,Version=v1.0/osx.10.11-x64"
+                    "netcoreapp1.0", "netcoreapp1.0/osx.10.11-x64"
                 });
 
             topLevels.Where(t => t.ItemSpec == "LibD/1.2.3").Count().Should().Be(1);
             topLevels.Where(t => t.ItemSpec == "LibD/1.2.3")
                 .Select(t => t.GetMetadata(MetadataKeys.ParentTarget))
                 .Should().Contain(new string[] {
-                    ".NETCoreApp,Version=v1.0"
+                    "netcoreapp1.0"
                 });
         }
 
@@ -355,11 +355,11 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
 
             var packageDep = task.PackageDependencies.Where(t => t.ItemSpec == "LibA/1.2.3").First();
             packageDep.GetMetadata(MetadataKeys.ParentPackage).Should().BeEmpty();
-            packageDep.GetMetadata(MetadataKeys.ParentTarget).Should().Be(".NETCoreApp,Version=v1.0");
+            packageDep.GetMetadata(MetadataKeys.ParentTarget).Should().Be("netcoreapp1.0");
 
             packageDep = task.PackageDependencies.Where(t => t.ItemSpec == "LibB/1.2.3").First();
             packageDep.GetMetadata(MetadataKeys.ParentPackage).Should().Be("LibA/1.2.3");
-            packageDep.GetMetadata(MetadataKeys.ParentTarget).Should().Be(".NETCoreApp,Version=v1.0");
+            packageDep.GetMetadata(MetadataKeys.ParentTarget).Should().Be("netcoreapp1.0");
 
             // LibC has both a package and project that depend on it
             var packageDeps = task.PackageDependencies.Where(t => t.ItemSpec == "LibC/1.2.3");
@@ -367,7 +367,7 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
             packageDeps.Select(t => t.GetMetadata(MetadataKeys.ParentPackage))
                 .Should().Contain(new string[] { "LibB/1.2.3", "ClassLibP/1.2.3" });
             packageDeps.Select(t => t.GetMetadata(MetadataKeys.ParentTarget))
-                .Should().OnlyContain(s => s == ".NETCoreApp,Version=v1.0");
+                .Should().OnlyContain(s => s == "netcoreapp1.0");
         }
 
         [Fact]
@@ -409,8 +409,8 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
                 fileDefns.Count().Should().Be(1);
                 fileDefns.First().GetMetadata(MetadataKeys.Type).Should().Be(pair.Value);
                 fileDefns.First().GetMetadata(MetadataKeys.Path).Should().Be(pair.Key);
-                fileDefns.First().GetMetadata(MetadataKeys.PackageName).Should().Be("LibB");
-                fileDefns.First().GetMetadata(MetadataKeys.PackageVersion).Should().Be("1.2.3");
+                fileDefns.First().GetMetadata(MetadataKeys.NuGetPackageId).Should().Be("LibB");
+                fileDefns.First().GetMetadata(MetadataKeys.NuGetPackageVersion).Should().Be("1.2.3");
                 fileDefns.First().GetMetadata(MetadataKeys.ResolvedPath)
                     .Should().Be(Path.Combine(_packageRoot, "LibB", "1.2.3", "path", 
                         pair.Key.Replace('/', Path.DirectorySeparatorChar)));
@@ -468,7 +468,7 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
                     fileDeps.Select(t => t.GetMetadata(MetadataKeys.ParentPackage))
                         .Should().OnlyContain(s => s == "LibB/1.2.3");
                     fileDeps.Select(t => t.GetMetadata(MetadataKeys.ParentTarget))
-                        .Should().Contain(new string[] { ".NETCoreApp,Version=v1.0", ".NETCoreApp,Version=v1.0/osx.10.11-x64" });
+                        .Should().Contain(new string[] { "netcoreapp1.0", "netcoreapp1.0/osx.10.11-x64" });
                 }
             }
         }
@@ -600,8 +600,8 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
                 "analyzers/dotnet/vb/Microsoft.CodeAnalysis.VisualBasic.Analyzers.dll",
             };
             var expectedTargets = new string[] {
-                ".NETCoreApp,Version=v1.0",
-                ".NETCoreApp,Version=v1.0/osx.10.11-x64"
+                "netcoreapp1.0",
+                "netcoreapp1.0/osx.10.11-x64"
             };
 
             foreach (var analyzer in analyzers)
@@ -681,8 +681,8 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
             fileDefns.Count().Should().Be(3);
 
             var expectedTargets = new string[] {
-                ".NETCoreApp,Version=v1.0",
-                ".NETCoreApp,Version=v1.0/osx.10.11-x64"
+                "netcoreapp1.0",
+                "netcoreapp1.0/osx.10.11-x64"
             };
 
             foreach (var analyzer in expectIncluded)
@@ -749,11 +749,11 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
             // Dep.Lib.Chi has version range [4.0.0, 5.0.0), but the version assigned 
             // is that of the library in the same target
 
-            chiDeps.Where(t => t.GetMetadata(MetadataKeys.ParentTarget) == ".NETCoreApp,Version=v1.0")
+            chiDeps.Where(t => t.GetMetadata(MetadataKeys.ParentTarget) == "netcoreapp1.0")
                 .Select(t => t.ItemSpec)
                 .First().Should().Be("Dep.Lib.Chi/4.0.0");
 
-            chiDeps.Where(t => t.GetMetadata(MetadataKeys.ParentTarget) == ".NETCoreApp,Version=v1.0/osx.10.11-x64")
+            chiDeps.Where(t => t.GetMetadata(MetadataKeys.ParentTarget) == "netcoreapp1.0/osx.10.11-x64")
                 .Select(t => t.ItemSpec)
                 .First().Should().Be("Dep.Lib.Chi/4.1.0");
         }
@@ -850,7 +850,7 @@ namespace Microsoft.NET.Build.Tasks.UnitTests
                 ProjectPath = _projectPath,
                 ProjectLanguage = null,
                 EmitLegacyAssetsFileItems = emitLegacyAssetsFileItems,
-                TargetFrameworkMoniker = target
+                TargetFramework = target
             };
 
             task.Execute().Should().BeTrue();

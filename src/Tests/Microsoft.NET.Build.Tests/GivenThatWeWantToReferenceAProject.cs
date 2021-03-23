@@ -14,6 +14,7 @@ using FluentAssertions;
 using System.Runtime.InteropServices;
 using System.Linq;
 using Xunit.Abstractions;
+using System.Xml.Linq;
 
 namespace Microsoft.NET.Build.Tests
 {
@@ -47,6 +48,17 @@ namespace Microsoft.NET.Build.Tests
             FailsBuild
         }
 
+        [RequiresMSBuildVersionTheory("16.8.0.42407")]
+        [InlineData("net5.0-windows", "net5.0", true)]
+        [InlineData("net5.0", "net5.0-windows", false)]
+        [InlineData("net5.0-windows", "net5.0-windows", true)]
+        [InlineData("net5.0-windows", "net5.0-windows7.0", true)]
+        [InlineData("net5.0-windows7.0", "net5.0-windows", true)]
+        public void It_checks_for_valid_platform_references(string referencerTarget, string dependencyTarget, bool succeeds)
+        {
+            It_checks_for_valid_references(referencerTarget, true, dependencyTarget, true, succeeds, succeeds);
+        }
+
         [Theory]
         [InlineData("netstandard1.2", true, "netstandard1.5", true, false, false)]
         [InlineData("netcoreapp1.1", true, "net45;netstandard1.5", true, true, true)]
@@ -71,7 +83,7 @@ namespace Microsoft.NET.Build.Tests
             referencerProject.ReferencedProjects.Add(dependencyProject);
 
             //  Set the referencer project as an Exe unless it targets .NET Standard
-            if (!referencerProject.ShortTargetFrameworkIdentifiers.Contains("netstandard"))
+            if (!referencerProject.TargetFrameworkIdentifiers.Contains(ConstantStringValues.NetstandardTargetFrameworkIdentifier))
             {
                 referencerProject.IsExe = true;
             }
@@ -114,8 +126,7 @@ namespace Microsoft.NET.Build.Tests
                     .Pass();
             }
 
-            var appProjectDirectory = Path.Combine(testAsset.TestRoot, "Referencer");
-            var buildCommand = new BuildCommand(Log, appProjectDirectory);
+            var buildCommand = new BuildCommand(testAsset, "Referencer");
             var result = buildCommand.Execute();
 
             if (buildSucceeds)
@@ -151,6 +162,144 @@ namespace Microsoft.NET.Build.Tests
             }
 
             return ret;
+        }
+
+        [RequiresMSBuildVersionTheory("16.7.1")]
+        [InlineData(true, true)]
+        [InlineData(false, true)]
+        [InlineData(false, false)]
+        public void It_disables_copying_conflicting_transitive_content(bool copyConflictingTransitiveContent, bool explicitlySet)
+        {
+            var tfm = "netcoreapp3.1";
+            var contentName = "script.sh";
+            var childProject = new TestProject()
+            {
+                TargetFrameworks = tfm,
+                Name = "ChildProject",
+                IsSdkProject = true
+            };
+            var childAsset = _testAssetsManager.CreateTestProject(childProject)
+                .WithProjectChanges(project => AddProjectChanges(project));
+            File.WriteAllText(Path.Combine(childAsset.Path, childProject.Name, contentName), childProject.Name);
+
+            var parentProject = new TestProject()
+            {
+                TargetFrameworks = tfm,
+                Name = "ParentProject",
+                IsSdkProject = true
+            };
+            if (explicitlySet)
+            {
+                parentProject.AdditionalProperties["CopyConflictingTransitiveContent"] = copyConflictingTransitiveContent.ToString().ToLower();
+            }
+            var parentAsset = _testAssetsManager.CreateTestProject(parentProject)
+                .WithProjectChanges(project => AddProjectChanges(project, Path.Combine(childAsset.Path, childProject.Name, childProject.Name + ".csproj")));
+            File.WriteAllText(Path.Combine(parentAsset.Path, parentProject.Name, contentName), parentProject.Name);
+
+            var buildCommand = new BuildCommand(parentAsset);
+            buildCommand.Execute().Should().Pass();
+
+            var getValuesCommand = new GetValuesCommand(Log, Path.Combine(parentAsset.Path, parentProject.Name), tfm, "ResultOutput");
+            getValuesCommand.DependsOnTargets = "Build";
+            getValuesCommand.Execute().Should().Pass();
+
+            var valuesResult = getValuesCommand.GetValuesWithMetadata().Select(pair => pair.value);
+            if (copyConflictingTransitiveContent)
+            {
+                valuesResult.Count().Should().Be(2);
+                valuesResult.Should().BeEquivalentTo(Path.Combine(parentAsset.Path, parentProject.Name, contentName), Path.Combine(childAsset.Path, childProject.Name, contentName));
+            }
+            else
+            {
+                valuesResult.Count().Should().Be(1);
+                valuesResult.First().Should().Contain(Path.Combine(parentAsset.Path, parentProject.Name, contentName));
+            }
+        }
+
+        private void AddProjectChanges(XDocument project, string childPath = null)
+        {
+            var ns = project.Root.Name.Namespace;
+
+            var itemGroup = new XElement(ns + "ItemGroup");
+            project.Root.Add(itemGroup);
+
+            var content = new XElement(ns + "Content",
+                new XAttribute("Include", "script.sh"), new XAttribute("CopyToOutputDirectory", "PreserveNewest"));
+            itemGroup.Add(content);
+
+            if (childPath != null)
+            {
+                var projRef = new XElement(ns + "ProjectReference",
+                    new XAttribute("Include", childPath));
+                itemGroup.Add(projRef);
+
+                var target = new XElement(ns + "Target",
+                    new XAttribute("Name", "WriteOutput"),
+                    new XAttribute("DependsOnTargets", "GetCopyToOutputDirectoryItems"),
+                    new XAttribute("BeforeTargets", "_CopyOutOfDateSourceItemsToOutputDirectory"));
+
+                var propertyGroup = new XElement(ns + "PropertyGroup");
+                propertyGroup.Add(new XElement("ResultOutput", "@(AllItemsFullPathWithTargetPath)"));
+                target.Add(propertyGroup);
+                project.Root.Add(target);
+            }
+        }
+
+        [RequiresMSBuildVersionFact("16.8.0")]
+        public void It_copies_content_transitively()
+        {
+            var targetFramework = "net5.0";
+            var testProjectA = new TestProject()
+            {
+                Name = "A",
+                TargetFrameworks = targetFramework,
+                IsSdkProject = true
+            };
+
+            var testProjectB = new TestProject()
+            {
+                Name = "B",
+                TargetFrameworks = targetFramework,
+                IsSdkProject = true
+            };
+            testProjectB.ReferencedProjects.Add(testProjectA);
+
+            var testProjectC = new TestProject()
+            {
+                Name = "C",
+                TargetFrameworks = targetFramework,
+                IsSdkProject = true
+            };
+            testProjectC.AdditionalProperties.Add("DisableTransitiveProjectReferences", "true");
+            testProjectC.ReferencedProjects.Add(testProjectB);
+            var testAsset = _testAssetsManager.CreateTestProject(testProjectC).WithProjectChanges((path, p) =>
+            { 
+                if (path.Contains(testProjectA.Name))
+                {
+                    var ns = p.Root.Name.Namespace;
+                    p.Root.Add(new XElement(ns + "ItemGroup",
+                        new XElement(ns + "Content", new XAttribute("Include", "a.txt"), new XAttribute("CopyToOutputDirectory", "PreserveNewest"))));
+                }
+            });
+            File.WriteAllText(Path.Combine(testAsset.Path, testProjectA.Name, "a.txt"), "A");
+
+            var buildCommand = new BuildCommand(testAsset);
+            buildCommand
+                .Execute()
+                .Should()
+                .Pass();
+
+            var contentPath = Path.Combine(testAsset.Path, testProjectC.Name, "bin", "Debug", targetFramework, "a.txt");
+            File.Exists(contentPath).Should().BeTrue();
+            var binDir = new DirectoryInfo(Path.Combine(testAsset.Path, testProjectC.Name, "bin"));
+            binDir.Delete(true);
+
+            buildCommand
+                .Execute("/p:BuildProjectReferences=false")
+                .Should()
+                .Pass();
+
+            File.Exists(contentPath).Should().BeTrue();
         }
     }
 }

@@ -1,10 +1,9 @@
-﻿using System;
+﻿// Copyright (c) .NET Foundation and contributors. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
-using System.Text;
 using Microsoft.DotNet.Cli.Utils;
-using Microsoft.DotNet.PlatformAbstractions;
 
 namespace Microsoft.NET.TestFramework.Commands
 {
@@ -15,6 +14,8 @@ namespace Microsoft.NET.TestFramework.Commands
 
         public Dictionary<string, string> Environment { get; set; } = new Dictionary<string, string>();
 
+        public List<string> EnvironmentToRemove { get; } = new List<string>();
+
         public string WorkingDirectory { get; set; }
 
         private string EscapeArgs()
@@ -24,23 +25,13 @@ namespace Microsoft.NET.TestFramework.Commands
             return ArgumentEscaper.EscapeAndConcatenateArgArrayForProcessStart(Arguments);
         }
 
-        public ICommand ToCommand()
+        public Command ToCommand()
         {
-            var commandSpec = new CommandSpec(FileName, EscapeArgs(), CommandResolutionStrategy.Path);
-            ICommand ret = Command.Create(commandSpec);
-            if (WorkingDirectory != null)
+            var process = new Process()
             {
-                ret = ret.WorkingDirectory(WorkingDirectory);
-            }
-
-            //  It's necessary to set the environment variables here instead of passing them to the CommandSpec constructor,
-            //  because if they are passed to the CommandSpec constructor, they won't override existing environment variables,
-            //  which can cause the wrong MSBuildSDKsPath to be used
-            foreach (var kvp in Environment)
-            {
-                ret.EnvironmentVariable(kvp.Key, kvp.Value);
-            }
-
+                StartInfo = ToProcessStartInfo()
+            };
+            var ret = new Command(process, trimtrailingNewlines: true);
             return ret;
         }
 
@@ -49,9 +40,14 @@ namespace Microsoft.NET.TestFramework.Commands
             var ret = new ProcessStartInfo();
             ret.FileName = FileName;
             ret.Arguments = EscapeArgs();
+            ret.UseShellExecute = false;
             foreach (var kvp in Environment)
             {
                 ret.Environment[kvp.Key] = kvp.Value;
+            }
+            foreach (var envToRemove in EnvironmentToRemove)
+            {
+                ret.Environment.Remove(envToRemove);
             }
 
             if (WorkingDirectory != null)
@@ -62,6 +58,4 @@ namespace Microsoft.NET.TestFramework.Commands
             return ret;
         }
     }
-
-
 }

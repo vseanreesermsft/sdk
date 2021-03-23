@@ -34,9 +34,7 @@ namespace FrameworkReferenceTest
     }
 }";
 
-        //  Tests in this class are currently Core MSBuild only, as they check for PackageDownload items,
-        //  which are currently only used in Core MSBuild
-        [CoreMSBuildAndWindowsOnlyFact]
+        [WindowsOnlyFact]
         public void Multiple_frameworks_are_written_to_runtimeconfig_when_there_are_multiple_FrameworkReferences()
         {
             var testProject = new TestProject()
@@ -54,7 +52,7 @@ namespace FrameworkReferenceTest
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand
                 .Execute()
@@ -71,7 +69,7 @@ namespace FrameworkReferenceTest
             runtimeFrameworkNames.Should().BeEquivalentTo("Microsoft.AspNetCore.App", "Microsoft.WindowsDesktop.App");
         }
 
-        [CoreMSBuildOnlyTheory]
+        [Theory]
         [InlineData("netcoreapp3.0", false)]
         [InlineData("netcoreapp3.1", true)]
         public void Multiple_frameworks_are_written_to_runtimeconfig_for_self_contained_apps(string tfm, bool shouldHaveIncludedFrameworks)
@@ -97,7 +95,7 @@ namespace FrameworkReferenceTest
             TestAsset testAsset = _testAssetsManager.CreateTestProject(testProject)
                 .Restore(Log, testProject.Name);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand
                 .Execute()
@@ -118,7 +116,7 @@ namespace FrameworkReferenceTest
             }
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void ForceGenerateRuntimeConfigurationFiles_works_even_on_netFramework_tfm()
         {
             var testProject = new TestProject()
@@ -135,7 +133,7 @@ namespace FrameworkReferenceTest
             TestAsset testAsset = _testAssetsManager.CreateTestProject(testProject)
                 .Restore(Log, testProject.Name);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand
                 .Execute()
@@ -147,7 +145,7 @@ namespace FrameworkReferenceTest
             Assert.True(File.Exists(runtimeConfigFile), $"Expected to generate runtime config file '{runtimeConfigFile}'");
         }
 
-        [CoreMSBuildAndWindowsOnlyFact]
+        [WindowsOnlyFact]
         public void DuplicateFrameworksAreNotWrittenToRuntimeConfigWhenThereAreDifferentProfiles()
         {
             var testProject = new TestProject()
@@ -165,7 +163,7 @@ namespace FrameworkReferenceTest
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand
                 .Execute()
@@ -182,7 +180,7 @@ namespace FrameworkReferenceTest
             runtimeFrameworkNames.Should().BeEquivalentTo("Microsoft.WindowsDesktop.App");
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void The_build_fails_when_there_is_an_unknown_FrameworkReference()
         {
             var testProject = new TestProject()
@@ -208,7 +206,7 @@ namespace FrameworkReferenceTest
 
                 });
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand
                 .Execute()
@@ -220,7 +218,7 @@ namespace FrameworkReferenceTest
                 ;
         }
 
-        [CoreMSBuildOnlyTheory]
+        [Theory]
         [InlineData("netcoreapp2.1", false)]
         [InlineData("netcoreapp3.0", true)]
         public void KnownFrameworkReferencesOnlyApplyToCorrectTargetFramework(string targetFramework, bool shouldPass)
@@ -245,7 +243,7 @@ namespace FrameworkReferenceTest
                                                new XAttribute("Include", "Microsoft.ASPNETCORE.App")));
                 });
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             var result = buildCommand.Execute();
 
@@ -263,7 +261,47 @@ namespace FrameworkReferenceTest
             }
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
+        public void KnownFrameworkReferencesOnlyApplyToCorrectTargetPlatform()
+        {
+            var testProject = new TestProject()
+            {
+                Name = "FrameworkReferenceTest",
+                TargetFrameworks = "net5.0-windows",
+                IsSdkProject = true,
+                IsExe = true
+            };
+
+            var testAsset = _testAssetsManager.CreateTestProject(testProject)
+                .WithProjectChanges(project =>
+                {
+                    var ns = project.Root.Name.Namespace;
+
+                    var itemGroup = new XElement(ns + "ItemGroup");
+                    project.Root.Add(itemGroup);
+
+                    //  Add a KnownFrameworkReference where the TargetPlatformVersion matches but the TargetPlatformIdentifier does not
+
+                    itemGroup.Add(new XElement(ns + "KnownFrameworkReference",
+                                               new XAttribute("Include", "NonExistentTestFrameworkReference"),
+                                               new XAttribute("TargetFramework", "net5.0-notwindows7.0"),
+                                               new XAttribute("RuntimeFrameworkName", "NonExistentTestFrameworkReference"),
+                                               new XAttribute("DefaultRuntimeFrameworkVersion", "7.0"),
+                                               new XAttribute("LatestRuntimeFrameworkVersion", "7.0"),
+                                               new XAttribute("TargetingPackName", "NonExistentTestFrameworkReference"),
+                                               new XAttribute("TargetingPackVersion", "7.0")));
+                });
+
+            var buildCommand = new BuildCommand(testAsset);
+
+            //  The build should succeed because the fake KnownFrameworkReference should not match, and the SDK shouldn't try to download
+            //  the nonexistent targeting pack.
+            buildCommand.Execute()
+                .Should()
+                .Pass();
+        }
+
+        [Fact]
         public void TargetingPackDownloadCanBeDisabled()
         {
             var testProject = new TestProject()
@@ -284,12 +322,12 @@ namespace FrameworkReferenceTest
             string nugetPackagesFolder = Path.Combine(testAsset.TestRoot, "packages");
 
 
-            var restoreCommand = new RestoreCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name))
+            var restoreCommand = new RestoreCommand(testAsset)
                 .WithEnvironmentVariable("NUGET_PACKAGES", nugetPackagesFolder);
             restoreCommand.Execute().Should().Pass();
 
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name))
+            var buildCommand = new BuildCommand(testAsset)
                 .WithEnvironmentVariable("NUGET_PACKAGES", nugetPackagesFolder);
 
             buildCommand
@@ -297,7 +335,7 @@ namespace FrameworkReferenceTest
                 .Should()
                 .Fail()
                 .And
-                .HaveStdOutContaining("NETSDK1073");
+                .HaveStdOutContaining("NETSDK1127");
         }
 
         [Theory]
@@ -319,7 +357,7 @@ namespace FrameworkReferenceTest
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             if (valid)
             {
@@ -369,7 +407,7 @@ namespace FrameworkReferenceTest
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             var result = buildCommand.Execute();
 
@@ -389,7 +427,7 @@ namespace FrameworkReferenceTest
             }
         }
 
-        [CoreMSBuildAndWindowsOnlyFact]
+        [WindowsOnlyFact]
         public void BuildFailsIfRuntimePackIsNotAvailableForRuntimeIdentifier()
         {
             var testProject = new TestProject()
@@ -414,7 +452,7 @@ namespace FrameworkReferenceTest
                     itemGroup.Add(frameworkReference);
                 });
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand
                 //  Pass "/clp:summary" so that we can check output for string "1 Error(s)"
@@ -427,7 +465,7 @@ namespace FrameworkReferenceTest
                 .HaveStdOutContaining("1 Error(s)");
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void BuildFailsIfInvalidRuntimeIdentifierIsSpecified()
         {
             var testProject = new TestProject()
@@ -441,7 +479,7 @@ namespace FrameworkReferenceTest
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var restoreCommand = new RestoreCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var restoreCommand = new RestoreCommand(testAsset);
 
             restoreCommand
                 //  Pass "/clp:summary" so that we can check output for string "1 Error(s)"
@@ -454,7 +492,7 @@ namespace FrameworkReferenceTest
                 .HaveStdOutContaining("1 Error(s)");
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void BuildFailsIfRuntimePackHasNotBeenRestored()
         {
             var testProject = new TestProject()
@@ -472,14 +510,14 @@ namespace FrameworkReferenceTest
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var restoreCommand = new RestoreCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var restoreCommand = new RestoreCommand(testAsset);
 
             restoreCommand
                 .Execute()
                 .Should()
                 .Pass();
 
-            var buildCommand = new BuildCommand(Log, testAsset.TestRoot, testProject.Name);
+            var buildCommand = new BuildCommand(testAsset);
 
             //  If we do the work in https://github.com/dotnet/cli/issues/10528,
             //  then we should add a new error message here indicating that the runtime pack hasn't
@@ -495,7 +533,7 @@ namespace FrameworkReferenceTest
 
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void RuntimeFrameworkVersionCanBeSpecifiedOnFrameworkReference()
         {
             var testProject = new TestProject();
@@ -527,7 +565,7 @@ namespace FrameworkReferenceTest
             resolvedVersions.AppHostPack["AppHost"].Should().Be("3.0.0-runtimeframeworkversion-property");
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void RuntimeFrameworkVersionCanBeSpecifiedViaProperty()
         {
             var testProject = new TestProject();
@@ -550,7 +588,7 @@ namespace FrameworkReferenceTest
             resolvedVersions.AppHostPack["AppHost"].Should().Be(runtimeFrameworkVersion);
         }
 
-        [CoreMSBuildOnlyTheory]
+        [Theory]
         [InlineData(true)]
         [InlineData(false)]
         public void TargetLatestPatchCanBeSpecifiedOnFrameworkReference(bool attributeValue)
@@ -586,7 +624,7 @@ namespace FrameworkReferenceTest
             resolvedVersions.AppHostPack["AppHost"].Should().Be("3.0.0-apphostversion");
         }
 
-        [CoreMSBuildOnlyTheory]
+        [Theory]
         [InlineData(true)]
         [InlineData(false)]
         public void TargetLatestPatchCanBeSpecifiedViaProperty(bool propertyValue)
@@ -612,7 +650,7 @@ namespace FrameworkReferenceTest
             resolvedVersions.AppHostPack["AppHost"].Should().Be("3.0.0-apphostversion");
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void TargetingPackVersionCanBeSpecifiedOnFrameworkReference()
         {
             var testProject = new TestProject();
@@ -646,7 +684,7 @@ namespace FrameworkReferenceTest
         //  Transitive framework references require NuGet support, which isn't currently
         //  in the full Framework MSBuild we use in CI, so only run these tests for
         //  core MSBuild for now
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void TransitiveFrameworkReferenceFromProjectReference()
         {
             var testProject = new TestProject()
@@ -670,7 +708,7 @@ namespace FrameworkReferenceTest
 
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand
                 .Execute()
@@ -687,7 +725,7 @@ namespace FrameworkReferenceTest
             runtimeFrameworkNames.Should().BeEquivalentTo("Microsoft.AspNetCore.App");
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void TransitiveFrameworkReferenceFromPackageReference()
         {
             var referencedPackage = new TestProject()
@@ -724,7 +762,7 @@ namespace FrameworkReferenceTest
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
             string nugetPackagesFolder = Path.Combine(testAsset.TestRoot, "packages");
 
-            var buildCommand = (BuildCommand) new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name))
+            var buildCommand = (BuildCommand) new BuildCommand(testAsset)
                 .WithEnvironmentVariable("NUGET_PACKAGES", nugetPackagesFolder);
 
             buildCommand
@@ -742,7 +780,7 @@ namespace FrameworkReferenceTest
             runtimeFrameworkNames.Should().BeEquivalentTo("Microsoft.AspNetCore.App");
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void IsTrimmableDefaultsComeFromKnownFrameworkReference()
         {
             var testProject = new TestProject();
@@ -759,7 +797,7 @@ namespace FrameworkReferenceTest
             }
         }
 
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void IsTrimmableCanBeSpecifiedOnFrameworkReference()
         {
             var testProject = new TestProject();
@@ -806,7 +844,7 @@ namespace FrameworkReferenceTest
 
             var projectFolder = Path.Combine(testAsset.TestRoot, testProject.Name);
 
-            var buildCommand = new BuildCommand(Log, projectFolder);
+            var buildCommand = new BuildCommand(testAsset);
 
             var expectedMetadata = new[]
             {
@@ -932,7 +970,7 @@ namespace FrameworkReferenceTest
 
             string projectFolder = Path.Combine(testAsset.TestRoot, testProject.Name);
 
-            var buildCommand = new BuildCommand(Log, projectFolder);
+            var buildCommand = new BuildCommand(testAsset);
 
             buildCommand
                 .Execute()
@@ -1041,9 +1079,9 @@ namespace FrameworkReferenceTest
     <ItemGroup>
       <LinesToWrite Include=`RuntimeFramework%09%(RuntimeFramework.Identity)%09%(RuntimeFramework.Version)`/>
       <LinesToWrite Include=`PackageDownload%09%(PackageDownload.Identity)%09%(PackageDownload.Version)`/>
-      <LinesToWrite Include=`TargetingPack%09%(TargetingPack.Identity)%09%(TargetingPack.PackageVersion)`/>
-      <LinesToWrite Include=`RuntimePack%09%(RuntimePack.Identity)%09%(RuntimePack.PackageVersion)`/>
-      <LinesToWrite Include=`AppHostPack%09%(AppHostPack.Identity)%09%(AppHostPack.PackageVersion)`/>
+      <LinesToWrite Include=`TargetingPack%09%(TargetingPack.Identity)%09%(TargetingPack.NuGetPackageVersion)`/>
+      <LinesToWrite Include=`RuntimePack%09%(RuntimePack.Identity)%09%(RuntimePack.NuGetPackageVersion)`/>
+      <LinesToWrite Include=`AppHostPack%09%(AppHostPack.Identity)%09%(AppHostPack.NuGetPackageVersion)`/>
     </ItemGroup>
     <WriteLinesToFile File=`$(OutputPath)resolvedversions.txt`
                       Lines=`@(LinesToWrite)`
@@ -1096,7 +1134,7 @@ namespace FrameworkReferenceTest
                                                         "ResolvedFileToPublish", GetValuesCommand.ValueType.Item)
             {
                 DependsOnTargets = "ComputeFilesToPublish",
-                MetadataNames = { "PackageName", "IsTrimmable" },
+                MetadataNames = { "NuGetPackageId", "IsTrimmable" },
             };
 
             command.Execute().Should().Pass();
@@ -1104,7 +1142,7 @@ namespace FrameworkReferenceTest
                         select new
                         {
                             Identity = item.value,
-                            PackageName = item.metadata["PackageName"],
+                            PackageName = item.metadata["NuGetPackageId"],
                             IsTrimmable = item.metadata["IsTrimmable"]
                         };
 

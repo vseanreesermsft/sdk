@@ -13,8 +13,8 @@ using Xunit.Abstractions;
 using Xunit;
 using System;
 using System.IO;
-using Microsoft.DotNet.PlatformAbstractions;
 using Microsoft.NET.TestFramework.ProjectConstruction;
+using Microsoft.Build.Utilities;
 
 namespace Microsoft.NET.Build.Tests
 {
@@ -40,13 +40,6 @@ namespace Microsoft.NET.Build.Tests
         [InlineData("netcoreapp3.0", false)]
         public void It_builds_a_simple_vb_project(string targetFramework, bool isExe)
         {
-            if (targetFramework == "net45" && !TestProject.ReferenceAssembliesAreInstalled("v4.5"))
-            {
-                // skip net45 when we do not have .NET Framework 4.5 reference assemblies
-                // due to https://github.com/dotnet/core-sdk/issues/3228
-                return;
-            }
-
             var (expectedVBRuntime, expectedOutputFiles) = GetExpectedOutputs(targetFramework, isExe);
 
             var testProject = new TestProject
@@ -115,12 +108,20 @@ namespace Microsoft.NET.Build.Tests
             switch ((targetFramework, isExe))
             {
                 case ("net45", true):
-                    return (VBRuntime.Default, new[]
+                    var files = new[]
+                        {
+                            "HelloWorld.exe",
+                            "HelloWorld.exe.config",
+                            "HelloWorld.pdb"
+                        };
+                    if (TestProject.ReferenceAssembliesAreInstalled(TargetDotNetFrameworkVersion.Version471))
                     {
-                        "HelloWorld.exe",
-                        "HelloWorld.exe.config",
-                        "HelloWorld.pdb"
-                    });
+                        return (VBRuntime.Default, files);
+                    }
+                    else
+                    {
+                        return (VBRuntime.Referenced, files);
+                    }
 
                 case ("netcoreapp2.1", true):
                     return (VBRuntime.Embedded, new[]

@@ -4,7 +4,6 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.DotNet.Cli.Utils;
-using Microsoft.DotNet.PlatformAbstractions;
 using Microsoft.NET.TestFramework;
 using Microsoft.NET.TestFramework.Assertions;
 using Microsoft.NET.TestFramework.Commands;
@@ -15,7 +14,6 @@ using System.Runtime.CompilerServices;
 using System;
 using Microsoft.Extensions.DependencyModel;
 using Xunit.Abstractions;
-using RuntimeEnvironment = Microsoft.DotNet.PlatformAbstractions.RuntimeEnvironment;
 
 namespace Microsoft.NET.Publish.Tests
 {
@@ -161,7 +159,7 @@ public static class Program
             publishDirectory.Should().HaveFile($"Hello.World{Constants.ExeSuffix}");
         }
 		
-        [CoreMSBuildOnlyTheory]
+        [Theory]
         [InlineData("win-arm")]
         [InlineData("win8-arm")]
         [InlineData("win81-arm")]
@@ -398,13 +396,11 @@ public static class Program
         [Fact]
         public void A_deployment_project_can_reference_the_hello_world_project()
         {
-            var rid = Microsoft.DotNet.PlatformAbstractions.RuntimeEnvironment.GetRuntimeIdentifier();
-
             var helloWorldAsset = _testAssetsManager
                 .CopyTestAsset("DeployProjectReferencingSdkProject")
                 .WithSource();
 
-            var buildCommand = new BuildCommand(Log, helloWorldAsset.TestRoot, Path.Combine("DeployProj", "Deploy.proj"));
+            var buildCommand = new BuildCommand(helloWorldAsset, Path.Combine("DeployProj", "Deploy.proj"));
 
             buildCommand
                 .Execute()
@@ -487,7 +483,7 @@ public static class Program
                     project.Root.Add(XElement.Parse(@"<Target Name=""InvokeBuild"" DependsOnTargets=""Build"" BeforeTargets=""Publish"" />"));
                 });
 
-            new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name))
+            new BuildCommand(testAsset)
                 .Execute()
                 .Should()
                 .Pass();

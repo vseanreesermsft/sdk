@@ -63,7 +63,7 @@ namespace Microsoft.NET.Build.Tests
             }
 
             //  Set the referencer project as an Exe unless it targets .NET Standard
-            if (!referencerProject.ShortTargetFrameworkIdentifiers.Contains("netstandard"))
+            if (!referencerProject.TargetFrameworkIdentifiers.Contains(ConstantStringValues.NetstandardTargetFrameworkIdentifier))
             {
                 referencerProject.IsExe = true;
             }
@@ -79,9 +79,7 @@ namespace Microsoft.NET.Build.Tests
                 restoreCommand.Execute().Should().Fail();
             }
 
-            var appProjectDirectory = Path.Combine(testAsset.TestRoot, referencerProject.Name);
-
-            var buildCommand = new BuildCommand(Log, appProjectDirectory);
+            var buildCommand = new BuildCommand(testAsset);
 
             var result = buildCommand.Execute();
 

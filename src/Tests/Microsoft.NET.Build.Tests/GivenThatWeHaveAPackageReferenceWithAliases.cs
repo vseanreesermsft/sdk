@@ -21,10 +21,10 @@ namespace Microsoft.NET.Build.Tests
         public GivenThatWeHaveAPackageReferenceWithAliases(ITestOutputHelper log) : base(log)
         { }
 
-        [CoreMSBuildOnlyFact]
+        [RequiresMSBuildVersionFact("16.8.0")]
         public void CanBuildProjectWithPackageReferencesWithConflictingTypes()
         {
-            var targetFramework = "netcoreapp3.1";
+            var targetFramework = "net5.0";
             var packageReferences = GetPackageReferencesWithConflictingTypes(targetFramework, "A", "B");
 
             TestProject testProject = new TestProject()
@@ -43,26 +43,27 @@ namespace Microsoft.NET.Build.Tests
                     packageReferences.Last().NupkgPath,
                     packageReferences.Last().PrivateAssets,
                     aliases: "Special"));
-            var packagesPaths = packageReferences.Select(e => Path.GetDirectoryName(e.NupkgPath));
-
-            testProject.AdditionalProperties.Add("RestoreSources",
-                                     "$(RestoreSources);" + string.Join(";", packagesPaths));
 
             //  Use a test-specific packages folder
             testProject.AdditionalProperties["RestorePackagesPath"] = @"$(MSBuildProjectDirectory)\..\pkg";
             testProject.SourceFiles[$"{testProject.Name}.cs"] = ConflictingClassLibUsage;
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            var packagesPaths = packageReferences.Select(e => Path.GetDirectoryName(e.NupkgPath));
+            List<string> sources = new List<string>() { NuGetConfigWriter.DotnetCoreBlobFeed };
+            sources.AddRange(packagesPaths);
+            NuGetConfigWriter.Write(testAsset.TestRoot, sources);
+
+            var buildCommand = new BuildCommand(testAsset);
             buildCommand.Execute()
                 .Should()
                 .Pass();
         }
 
-        [CoreMSBuildOnlyFact]
+        [RequiresMSBuildVersionFact("16.8.0")]
         public void CanBuildProjectWithMultiplePackageReferencesWithAliases()
         {
-            var targetFramework = "netcoreapp3.1";
+            var targetFramework = "net5.0";
 
             var packageReferenceA = GetPackageReference(targetFramework, "A", ClassLibClassA);
             var packageReferenceB = GetPackageReference(targetFramework, "B", ClassLibClassB);
@@ -90,24 +91,24 @@ namespace Microsoft.NET.Build.Tests
                    packageReferenceB.PrivateAssets,
                    aliases: "Second"));
 
-            testProject.AdditionalProperties.Add("RestoreSources",
-                                     "$(RestoreSources);" + Path.GetDirectoryName(packageReferenceA.NupkgPath) + ";" + Path.GetDirectoryName(packageReferenceB.NupkgPath));
-
             //  Use a test-specific packages folder
             testProject.AdditionalProperties["RestorePackagesPath"] = @"$(MSBuildProjectDirectory)\..\pkg";
             testProject.SourceFiles[$"{testProject.Name}.cs"] = ClassLibAandBUsage;
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            List<string> sources = new List<string>() { NuGetConfigWriter.DotnetCoreBlobFeed, Path.GetDirectoryName(packageReferenceA.NupkgPath), Path.GetDirectoryName(packageReferenceB.NupkgPath) };
+            NuGetConfigWriter.Write(testAsset.TestRoot, sources);
+
+            var buildCommand = new BuildCommand(testAsset);
             buildCommand.Execute()
                 .Should()
                 .Pass();
         }
 
-        [CoreMSBuildOnlyFact]
+        [RequiresMSBuildVersionFact("16.8.0")]
         public void CanBuildProjectWithAPackageReferenceWithMultipleAliases()
         {
-            var targetFramework = "netcoreapp3.1";
+            var targetFramework = "net5.0";
 
             var packageReferenceA = GetPackageReference(targetFramework, "A", ClassLibMultipleClasses);
 
@@ -127,15 +128,15 @@ namespace Microsoft.NET.Build.Tests
                    packageReferenceA.PrivateAssets,
                    aliases: "First,Second"));
 
-            testProject.AdditionalProperties.Add("RestoreSources",
-                                     "$(RestoreSources);" + Path.GetDirectoryName(packageReferenceA.NupkgPath));
-
             //  Use a test-specific packages folder
             testProject.AdditionalProperties["RestorePackagesPath"] = @"$(MSBuildProjectDirectory)\..\pkg";
             testProject.SourceFiles[$"{testProject.Name}.cs"] = ClassLibAandBUsage;
             var testAsset = _testAssetsManager.CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, Path.Combine(testAsset.TestRoot, testProject.Name));
+            List<string> sources = new List<string>() { NuGetConfigWriter.DotnetCoreBlobFeed, Path.GetDirectoryName(packageReferenceA.NupkgPath) };
+            NuGetConfigWriter.Write(testAsset.TestRoot, sources);
+
+            var buildCommand = new BuildCommand(testAsset);
             buildCommand.Execute()
                 .Should()
                 .Pass();

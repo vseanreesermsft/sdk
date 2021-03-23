@@ -3,10 +3,16 @@
 <Project>
 
   <PropertyGroup>
+    <PackageId>Microsoft.NET.Sdk</PackageId>
+    <OutDirName>$(Configuration)\Sdks\$(PackageId)\tools</OutDirName>
+  </PropertyGroup>
+  
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <PropertyGroup>
     <Description>The MSBuild targets and properties for building .NET Core projects.</Description>
     <OutputType>Library</OutputType>
-    <PackageId>Microsoft.NET.Sdk</PackageId>
-    <TargetFrameworks>netcoreapp2.1;net472</TargetFrameworks>
+    <TargetFrameworks>$(SdkTargetFramework);net472</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -14,19 +20,21 @@
     <EnableDefaultItems>false</EnableDefaultItems>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <OutDirName>$(Configuration)\Sdks\$(PackageId)\tools</OutDirName>
+
     <NoPackageAnalysis>true</NoPackageAnalysis>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- MSBuild Task DLLs need to be versioned with every build -->
     <AutoGenerateAssemblyVersion>true</AutoGenerateAssemblyVersion>
   </PropertyGroup>
 
-  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
   <PropertyGroup>
     <OutputPath>$(BaseOutputPath)</OutputPath>
     <IsPackable>true</IsPackable>
     <PackageLayoutOutputPath>$(ArtifactsBinDir)$(Configuration)\Sdks\$(PackageId)\</PackageLayoutOutputPath>
+
+    <!-- Allow .editorconfig file for analyzers to be packed -->
+    <NoDefaultExcludes>true</NoDefaultExcludes>
   </PropertyGroup>
 
   <ItemDefinitionGroup>
@@ -46,9 +54,11 @@
     <PackageReference Include="NuGet.Build.Tasks.Pack" Version="$(NuGetBuildTasksPackageVersion)" ExcludeAssets="All" />
   </ItemGroup>
 
-  <!-- System.Reflection.Metadata is in-box for .NET Core 2.0, so we only need to reference it for .NET Framework -->
+
+  <!-- Packages that are in-box for .NET Core, so we only need to reference them for .NET Framework -->
   <ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
     <PackageReference Include="System.Reflection.Metadata" Version="$(SystemReflectionMetadataVersion)" />
+    
   </ItemGroup>
 
   <!-- These are loaded from the CLI's copy on .NET Core, we don't need to duplicate them on disk -->
@@ -97,12 +107,9 @@
 
       <!-- Include some of the Sdks from the Stage 0 CLI for performance tests-->
       <Stage0SdkFile Include="$(_Stage0SdksFolder)\FSharp.NET.Sdk\**" SdkName="FSharp.NET.Sdk" />
-      <Stage0SdkFile Include="$(_Stage0SdksFolder)\Microsoft.NET.Sdk.Publish\**" SdkName="Microsoft.NET.Sdk.Publish" />
-      <Stage0SdkFile Include="$(_Stage0SdksFolder)\Microsoft.NET.Sdk.Web\**" SdkName="Microsoft.NET.Sdk.Web" />
-      <Stage0SdkFile Include="$(_Stage0SdksFolder)\Microsoft.NET.Sdk.Web.ProjectSystem\**" SdkName="Microsoft.NET.Sdk.Web.ProjectSystem" />
       <Stage0SdkFile Include="$(_Stage0SdksFolder)\Microsoft.NET.Sdk.Razor\**" SdkName="Microsoft.NET.Sdk.Razor" />
       <Stage0SdkFile Include="$(_Stage0SdksFolder)\Microsoft.NET.Sdk.WindowsDesktop\**" SdkName="Microsoft.NET.Sdk.WindowsDesktop" />
-      <Stage0SdkFile Include="$(_Stage0SdksFolder)\ILLink.Tasks\**" SdkName="ILLink.Tasks" />
+      <Stage0SdkFile Include="$(_Stage0SdksFolder)\Microsoft.NET.ILLink.Tasks\**" SdkName="Microsoft.NET.ILLink.Tasks" />
       <LayoutFile Include="@(Stage0SdkFile)">
         <TargetPath>..\%(Stage0SdkFile.SdkName)\%(Stage0SdkFile.RecursiveDir)%(Stage0SdkFile.Filename)%(Stage0SdkFile.Extension)</TargetPath>
       </LayoutFile>

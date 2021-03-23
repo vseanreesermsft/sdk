@@ -36,7 +36,7 @@ jobs:
       - _OfficialBuildIdArgs: ''
       - _PublishArgs: ''
       - _SignArgs: ''
-      - _TestArgs: $(_Test)
+      - _InternalRuntimeDownloadArgs: ''
       - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
         - group: DotNet-Symbol-Server-PATs
         - group: DotNet-HelixApi-Access
@@ -50,9 +50,24 @@ jobs:
                     /p:DotNetSymbolServerTokenSymWeb=$(symweb-symbol-server-pat)
                     /p:PB_PublishType=$(_PublishType)
                     /p:DotNetPublishUsingPipelines=true
+                    /p:PublishToAzure=$(_PublishToAzure)
         - _SignArgs: /p:DotNetSignType=$(_SignType) /p:TeamName=$(_TeamName)
         - _PerfIterations: 25
+
+      - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+        - group: DotNet-MSRC-Storage
+        - name: _InternalRuntimeDownloadArgs
+          value: /p:DotNetRuntimeSourceFeed=https://dotnetclimsrc.blob.core.windows.net/dotnet
+            /p:DotNetRuntimeSourceFeedKey=$(dotnetclimsrc-read-sas-token-base64)
     steps:
+    - ${{ if ne(variables['System.TeamProject'], 'public') }}:
+      - task: PowerShell@2
+        displayName: Setup Private Feeds Credentials
+        inputs:
+          filePath: $(Build.SourcesDirectory)/eng/common/SetupNugetSources.ps1
+          arguments: -ConfigFile $(Build.SourcesDirectory)/NuGet.config -Password $Env:Token
+        env:
+          Token: $(dn-bot-dnceng-artifact-feeds-rw)
     - ${{ if eq(parameters.agentOs, 'Windows_NT') }}:
       - ${{ if ne(variables['System.TeamProject'], 'public') }}:
         - task: PowerShell@2
@@ -67,14 +82,31 @@ jobs:
                   $(_PublishArgs)
                   $(_SignArgs)
                   $(_OfficialBuildIdArgs)
-                  $(_TestArgs)
+                  $(_Test)
+                  $(_InternalRuntimeDownloadArgs)
         displayName: Build
         env:
           BuildConfig: $(_BuildConfig)
           BlobFeedUrl: $(PB_PublishBlobFeedUrl)
           PublishType: $(_PublishType)
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+          HelixAccessToken: ${{ parameters.HelixAccessToken }}
+      # - powershell: eng\common\build.ps1
+      #         -configuration $(_BuildConfig)
+      #         -prepareMachine
+      #         -ci
+      #         -restore
+      #         $(_Test)
+      #         -projects $(Build.SourcesDirectory)/src/Tests/UnitTests.proj
+      #         /bl:$(Build.SourcesDirectory)\artifacts\log\$(_BuildConfig)\TestInHelix.binlog
+      #         /p:_CustomHelixTargetQueue=${{ parameters.helixTargetQueue }}
+      #   displayName: Run Tests in Helix
+      #   env:
+      #       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      #       HelixAccessToken: ''
 
     - ${{ if eq(parameters.agentOs, 'Windows_NT_FullFramework') }}:
+<<<<<<< HEAD
       - ${{ if ne(variables['System.TeamProject'], 'public') }}:
         - task: PowerShell@2
           displayName: Setup Private Feeds Credentials
@@ -84,18 +116,40 @@ jobs:
           env:
             Token: $(dn-bot-dnceng-artifact-feeds-rw)
       - script: eng\common\CIBuild.cmd
+=======
+      - script: eng\CIBuild.cmd
+>>>>>>> ef14c79a16171496e2d972edd9a7874d596f624d
                   -configuration $(_BuildConfig)
                   $(_PublishArgs)
                   $(_SignArgs)
                   $(_OfficialBuildIdArgs)
+                  $(_Test)
+                  $(_InternalRuntimeDownloadArgs)
         displayName: Build
         env:
           BuildConfig: $(_BuildConfig)
           BlobFeedUrl: $(PB_PublishBlobFeedUrl)
           PublishType: $(_PublishType)
           TestFullMSBuild: 'true'
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+          HelixAccessToken: ${{ parameters.HelixAccessToken }}
+      # - powershell: eng\common\build.ps1
+      #         -configuration $(_BuildConfig)
+      #         -prepareMachine
+      #         -ci
+      #         -restore
+      #         -test
+      #         -projects $(Build.SourcesDirectory)\src\Tests\UnitTests.proj
+      #         /bl:$(Build.SourcesDirectory)\artifacts\log\$(_BuildConfig)\TestInHelix.binlog
+      #         /p:_CustomHelixTargetQueue=${{ parameters.helixTargetQueue }}
+      #   displayName: Run Tests in Helix
+      #   env:
+      #       TestFullMSBuild: 'true'
+      #       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      #       HelixAccessToken: ''
 
     - ${{ if eq(parameters.agentOs, 'Windows_NT_TestAsTools') }}:
+<<<<<<< HEAD
       - ${{ if ne(variables['System.TeamProject'], 'public') }}:
         - task: PowerShell@2
           displayName: Setup Private Feeds Credentials
@@ -105,10 +159,15 @@ jobs:
           env:
             Token: $(dn-bot-dnceng-artifact-feeds-rw)
       - script: eng\common\CIBuild.cmd
+=======
+      - script: eng\CIBuild.cmd
+>>>>>>> ef14c79a16171496e2d972edd9a7874d596f624d
                   -configuration $(_BuildConfig)
                   $(_PublishArgs)
                   $(_SignArgs)
                   $(_OfficialBuildIdArgs)
+                  $(_Test)
+                  $(_InternalRuntimeDownloadArgs)
                   /p:RunTestsAsTool=true
         displayName: Build
         env:
@@ -117,6 +176,7 @@ jobs:
           PublishType: $(_PublishType)
 
     - ${{ if notIn(parameters.agentOs, 'Windows_NT', 'Windows_NT_FullFramework', 'Windows_NT_TestAsTools') }}:
+<<<<<<< HEAD
       - ${{ if ne(variables['System.TeamProject'], 'public') }}:
         - task: Bash@3
           displayName: Setup Private Feeds Credentials
@@ -126,15 +186,20 @@ jobs:
           env:
             Token: $(dn-bot-dnceng-artifact-feeds-rw)
       - script: eng/common/cibuild.sh 
+=======
+      - script: eng/common/cibuild.sh
+>>>>>>> ef14c79a16171496e2d972edd9a7874d596f624d
                   --configuration $(_BuildConfig)
                   $(_PublishArgs)
                   $(_SignArgs)
                   $(_OfficialBuildIdArgs)
+                  $(_InternalRuntimeDownloadArgs)
         displayName: Build
         env:
           BuildConfig: $(_BuildConfig)
           BlobFeedUrl: $(PB_PublishBlobFeedUrl)
           PublishType: $(_PublishType)
+<<<<<<< HEAD
 
     - task: PublishTestResults@1  
       displayName: Publish Test Results 
@@ -145,6 +210,31 @@ jobs:
         platform: '$(BuildPlatform)'  
         configuration: '$(_BuildConfig)'  
       condition: not(succeeded())
+=======
+      # - script: eng/common/build.sh
+      #         --configuration $(_BuildConfig)
+      #         --prepareMachine
+      #         --ci
+      #         --restore
+      #         --test
+      #         --projects $(Build.SourcesDirectory)/src/Tests/UnitTests.proj
+      #         /bl:$(Build.SourcesDirectory)/artifacts/log/$(_BuildConfig)/TestInHelix.binlog
+      #         /p:_CustomHelixTargetQueue=${{ parameters.helixTargetQueue }}
+      #   displayName: Run Tests in Helix
+      #   env:
+      #       SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      #       HelixAccessToken: ''
+
+    - task: PublishTestResults@2
+      displayName: Publish Test Results	
+      inputs:	
+        testResultsFormat: xUnit	
+        testResultsFiles: 'artifacts/TestResults/$(_BuildConfig)/*.xml'	
+        testRunTitle: '$(_AgentOSName)_$(Agent.JobName)'	
+        buildPlatform: '$(BuildPlatform)'	
+        buildConfiguration: '$(_BuildConfig)'	
+      condition: always()
+>>>>>>> ef14c79a16171496e2d972edd9a7874d596f624d
 
     - task: CopyFiles@2 
       displayName: Gather Logs  

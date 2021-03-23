@@ -11,7 +11,6 @@ using System.Xml.Linq;
 using FluentAssertions;
 
 using Microsoft.DotNet.Cli.Utils;
-using Microsoft.DotNet.PlatformAbstractions;
 using Microsoft.NET.TestFramework;
 using Microsoft.NET.TestFramework.Assertions;
 using Microsoft.NET.TestFramework.Commands;
@@ -47,7 +46,7 @@ namespace Microsoft.NET.Build.Tests
              var testProjectInstance = _testAssetsManager
                 .CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testProjectInstance.TestRoot, ProjectName);
+            var buildCommand = new BuildCommand(testProjectInstance);
 
             buildCommand.Execute()
                 .Should()
@@ -92,7 +91,7 @@ namespace Microsoft.NET.Build.Tests
              var testProjectInstance = _testAssetsManager
                 .CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testProjectInstance.TestRoot, ProjectName);
+            var buildCommand = new BuildCommand(testProjectInstance);
 
             buildCommand.Execute().Should().Pass();
 
@@ -106,8 +105,7 @@ namespace Microsoft.NET.Build.Tests
             }));
         }
 
-        //  Core MSBuild only because CI machines don't have updated VS (with support for RuntimeIdentifierGraphPath)
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void It_copies_local_specific_runtime_package_dependencies_on_build()
         {
             const string ProjectName = "TestProjWithPackageDependencies";
@@ -130,7 +128,7 @@ namespace Microsoft.NET.Build.Tests
              var testProjectInstance = _testAssetsManager
                 .CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testProjectInstance.TestRoot, ProjectName);
+            var buildCommand = new BuildCommand(testProjectInstance);
 
             buildCommand.Execute()
                 .Should()
@@ -170,7 +168,7 @@ namespace Microsoft.NET.Build.Tests
              var testProjectInstance = _testAssetsManager
                 .CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testProjectInstance.TestRoot, ProjectName);
+            var buildCommand = new BuildCommand(testProjectInstance);
 
             buildCommand.Execute()
                 .Should()
@@ -204,7 +202,7 @@ namespace Microsoft.NET.Build.Tests
              var testProjectInstance = _testAssetsManager
                 .CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testProjectInstance.TestRoot, ProjectName);
+            var buildCommand = new BuildCommand(testProjectInstance);
 
             buildCommand.Execute()
                 .Should()
@@ -241,7 +239,7 @@ namespace Microsoft.NET.Build.Tests
              var testProjectInstance = _testAssetsManager
                 .CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testProjectInstance.TestRoot, ProjectName);
+            var buildCommand = new BuildCommand(testProjectInstance);
 
             buildCommand.Execute()
                 .Should()
@@ -275,7 +273,7 @@ namespace Microsoft.NET.Build.Tests
              var testProjectInstance = _testAssetsManager
                 .CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testProjectInstance.TestRoot, ProjectName);
+            var buildCommand = new BuildCommand(testProjectInstance);
 
             buildCommand.Execute()
                 .Should()
@@ -312,7 +310,7 @@ namespace Microsoft.NET.Build.Tests
              var testProjectInstance = _testAssetsManager
                 .CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testProjectInstance.TestRoot, ProjectName);
+            var buildCommand = new BuildCommand(testProjectInstance);
 
             buildCommand.Execute()
                 .Should()
@@ -326,8 +324,7 @@ namespace Microsoft.NET.Build.Tests
             });
         }
 
-        //  Core MSBuild only because CI machines don't have updated VS (with support for RuntimeIdentifierGraphPath)
-        [CoreMSBuildOnlyFact]
+        [Fact]
         public void It_copies_local_all_assets_on_self_contained_build()
         {
             const string ProjectName = "TestProjWithPackageDependencies";
@@ -349,7 +346,7 @@ namespace Microsoft.NET.Build.Tests
              var testProjectInstance = _testAssetsManager
                 .CreateTestProject(testProject);
 
-            var buildCommand = new BuildCommand(Log, testProjectInstance.TestRoot, ProjectName);
+            var buildCommand = new BuildCommand(testProjectInstance);
 
             buildCommand.Execute()
                 .Should()

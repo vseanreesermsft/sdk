@@ -30,7 +30,7 @@ function SetupCredProvider {
   rm installcredprovider.sh
 
   if [ ! -d "$HOME/.nuget/plugins" ]; then
-    echo "CredProvider plugin was not installed correctly!"
+    Write-PipelineTelemetryError -category 'Build' 'CredProvider plugin was not installed correctly!'
     ExitWithExitCode 1  
   else 
     echo "CredProvider plugin was installed correctly!"
@@ -42,7 +42,7 @@ function SetupCredProvider {
   local nugetConfigPath="$repo_root/NuGet.config"
 
   if [ ! "$nugetConfigPath" ]; then
-    echo "NuGet.config file not found in repo's root!"
+    Write-PipelineTelemetryError -category 'Build' "NuGet.config file not found in repo's root!"
     ExitWithExitCode 1  
   fi
   
@@ -62,6 +62,11 @@ function SetupCredProvider {
   endpoints+=']'
 
   if [ ${#endpoints} -gt 2 ]; then 
+<<<<<<< HEAD
+=======
+      # [SuppressMessage("Microsoft.Security", "CS002:SecretInNextLine", Justification="Endpoint code example with no real credentials.")]
+      # Create the JSON object. It should look like '{"endpointCredentials": [{"endpoint":"http://example.index.json", "username":"optional", "password":"accesstoken"}]}'
+>>>>>>> ef14c79a16171496e2d972edd9a7874d596f624d
       local endpointCredentials="{\"endpointCredentials\": "$endpoints"}"
 
       echo "##vso[task.setvariable variable=VSS_NUGET_EXTERNAL_FEED_ENDPOINTS]$endpointCredentials"

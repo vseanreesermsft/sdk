@@ -12,8 +12,6 @@ namespace Microsoft.NET.Build.Tasks
         public const string FileGroup = "FileGroup";
         public const string Path = "Path";
         public const string ResolvedPath = "ResolvedPath";
-        public const string PackageName = "PackageName";
-        public const string PackageVersion = "PackageVersion";
         public const string IsImplicitlyDefined = "IsImplicitlyDefined";
         public const string IsTopLevelDependency = "IsTopLevelDependency";
         public const string AllowExplicitVersion = "AllowExplicitVersion";
@@ -23,6 +21,7 @@ namespace Microsoft.NET.Build.Tasks
         // Target Metadata
         public const string RuntimeIdentifier = "RuntimeIdentifier";
         public const string TargetFrameworkMoniker = "TargetFrameworkMoniker";
+        public const string TargetFramework = "TargetFramework";
         public const string FrameworkName = "FrameworkName";
         public const string FrameworkVersion = "FrameworkVersion";
         public const string IsTrimmable = "IsTrimmable"; 
@@ -34,6 +33,7 @@ namespace Microsoft.NET.Build.Tasks
         public const string OriginalItemSpec = "OriginalItemSpec";
         public const string SDKRootFolder = "SDKRootFolder";
         public const string ShimRuntimeIdentifier = "ShimRuntimeIdentifier";
+        public const string RuntimePackAlwaysCopyLocal = "RuntimePackAlwaysCopyLocal";
 
         // Foreign Keys
         public const string ParentTarget = "ParentTarget";
@@ -82,6 +82,11 @@ namespace Microsoft.NET.Build.Tasks
 
         //  Targeting packs
         public const string PackageConflictPreferredPackages = "PackageConflictPreferredPackages";
+
+        //  Runtime packs
+		public const string DropFromSingleFile = "DropFromSingleFile";
+        public const string RuntimePackLabels = "RuntimePackLabels";
+        public const string AdditionalFrameworkReferences = "AdditionalFrameworkReferences";
 
         // Content files
         public const string PPOutputPath = "PPOutputPath";
