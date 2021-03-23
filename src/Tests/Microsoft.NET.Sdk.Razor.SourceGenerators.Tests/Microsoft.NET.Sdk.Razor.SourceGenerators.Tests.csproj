@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <EnableDefaultItems>false</EnableDefaultItems>
-    <OutDirName>Tests\$(MSBuildProjectName)</OutDirName>
+    <OutDirName>Tests\Razor.SourceGenerators.Tests</OutDirName>
     <NoWarn>NU1605</NoWarn>
   </PropertyGroup>
 
