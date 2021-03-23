@@ -54,7 +54,11 @@ try {
   --id $buildId `
   --publishing-infra-version $PublishingInfraVersion `
   --default-channels `
+<<<<<<< HEAD
   --source-branch main `
+=======
+  --source-branch internal/release-publishing `
+>>>>>>> ef14c79a16171496e2d972edd9a7874d596f624d
   --azdev-pat $AzdoToken `
   --bar-uri $MaestroApiEndPoint `
   --password $MaestroToken `
