@@ -250,7 +250,7 @@ namespace Microsoft.DotNet.Cli.List.Package.Tests
                 .Fail();
         }
 
-        [FullMSBuildOnlyFact]
+        [CoreMSBuildOnlyFact]
         public void ItListsFSharpProject()
         {
             var testAssetName = "FSharpTestAppSimple";
